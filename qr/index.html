@@ -19,25 +19,23 @@
             return url.replace(/\./g, '[.]').replace(/:/g, '[:]').replace(/http/g, 'hxxp');
         }
 
-        function decodeQR(img) {
-            console.log("Attempting to decode...");
+        function decodeQR(img, attempt = 1) {
+            console.log(`Attempting to decode (Attempt ${attempt})...`);
             return new Promise((resolve, reject) => {
                 const codeReader = new ZXing.BrowserQRCodeReader();
                 codeReader.decodeFromImage(img).then(result => {
                     console.log("Decoding successful:", result.text);
                     resolve(result.text);
                 }).catch(err => {
-                    console.log("Decoding error:", err);
-                    // Second attempt after a short delay
-                    setTimeout(() => {
-                        codeReader.decodeFromImage(img).then(result => {
-                            console.log("Decoding successful on second attempt:", result.text);
-                            resolve(result.text);
-                        }).catch(err => {
-                            console.log("Both decoding attempts failed.");
-                            reject(err);
-                        });
-                    }, 100);
+                    if (attempt === 1) {
+                        console.log("First attempt failed. Retrying...");
+                        setTimeout(() => {
+                            decodeQR(img, 2).then(resolve).catch(reject);
+                        }, 100);
+                    } else {
+                        console.log("Both decoding attempts failed.");
+                        reject(err);
+                    }
                 });
             });
         }
