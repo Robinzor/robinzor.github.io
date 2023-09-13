@@ -1,13 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Code Reader with ZXing</title>
+    <title>QR Code Solver</title>
     <!-- Include ZXing library from your local directory -->
     <script src="js/zxing.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(45deg, #000, #333);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #fileInput {
+            padding: 10px 15px;
+            background-color: #fff;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #fileInput:hover {
+            background-color: #ddd;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #fff;
+            border-radius: 5px;
+            max-width: 80%;
+            text-align: center;
+            word-break: break-word;
+        }
+    </style>
 </head>
+
 <body>
+    <h1>QR Code Solver</h1>
     <input type="file" id="fileInput" />
     <p id="result"></p>
 
@@ -65,4 +105,5 @@
         });
     </script>
 </body>
+
 </html>
