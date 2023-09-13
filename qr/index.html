@@ -21,6 +21,10 @@
         }
 
         #fileInput {
+            display: none; /* Hide the actual file input */
+        }
+
+        label {
             padding: 10px 15px;
             background-color: #fff;
             color: #000;
@@ -28,9 +32,10 @@
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.3s;
+            display: inline-block;
         }
 
-        #fileInput:hover {
+        label:hover {
             background-color: #ddd;
         }
 
@@ -47,7 +52,8 @@
 </head>
 
 <body>
-    <h1>QR Code Solver</h1>
+    <h1> QR Code Solver</h1>
+    <label for="fileInput">Choose File</label>
     <input type="file" id="fileInput" />
     <p id="result"></p>
 
