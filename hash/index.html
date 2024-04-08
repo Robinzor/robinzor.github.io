@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Hasher</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(45deg, #000, #333);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #fileInput {
+            display: none; /* Hide the actual file input */
+        }
+
+        label {
+            padding: 10px 15px;
+            background-color: #fff;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: inline-block;
+        }
+
+        label:hover {
+            background-color: #ddd;
+        }
+
+        .hash-output {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #fff;
+            border-radius: 5px;
+            max-width: 80%;
+            text-align: center;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body>
+    <h1>File Hasher</h1>
+    <label for="fileInput">Choose File</label>
+    <input type="file" id="fileInput" onchange="computeHashes()" />
+    <div id="hashes" class="hash-output">
+        <p>SHA-1: <span id="hashOutputSHA1">N/A</span></p>
+        <p>SHA-256: <span id="hashOutputSHA256">N/A</span></p>
+        <p>SHA-384: <span id="hashOutputSHA384">N/A</span></p>
+        <p>SHA-512: <span id="hashOutputSHA512">N/A</span></p>
+    </div>
+
+    <script>
+        async function computeHashes() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (file) {
+                computeAndDisplayHash(file, 'SHA-1', 'hashOutputSHA1');
+                computeAndDisplayHash(file, 'SHA-256', 'hashOutputSHA256');
+                computeAndDisplayHash(file, 'SHA-384', 'hashOutputSHA384');
+                computeAndDisplayHash(file, 'SHA-512', 'hashOutputSHA512');
+            }
+        }
+
+        async function computeAndDisplayHash(file, hashType, outputElementId) {
+            const hash = await hashFile(file, hashType);
+            document.getElementById(outputElementId).textContent = hash;
+        }
+
+        async function hashFile(file, hashType) {
+            const buf = await file.arrayBuffer();
+            const hashBuffer = await crypto.subtle.digest(hashType, buf);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            return hashHex;
+        }
+    </script>
+</body>
+</html>
