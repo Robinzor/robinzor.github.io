@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Hasher</title>
+    <title>File Hasher with SSDeep</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -15,10 +15,6 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-        }
-
-        #fileInput {
-            display: none; /* Hide the actual file input */
         }
 
         label {
@@ -50,38 +46,27 @@
 <body>
     <h1>File Hasher</h1>
     <label for="fileInput">Choose File</label>
-    <input type="file" id="fileInput" onchange="computeHashes()" />
+    <input type="file" id="fileInput" style="display: none;" />
     <div id="hashes" class="hash-output">
-        <p>SHA-1: <span id="hashOutputSHA1">N/A</span></p>
-        <p>SHA-256: <span id="hashOutputSHA256">N/A</span></p>
-        <p>SHA-384: <span id="hashOutputSHA384">N/A</span></p>
-        <p>SHA-512: <span id="hashOutputSHA512">N/A</span></p>
+        SSDeep Hash: <span id="ssdeepHash">N/A</span>
     </div>
 
+    <script src="ssdeep.js"></script>
     <script>
-        async function computeHashes() {
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
-            if (file) {
-                computeAndDisplayHash(file, 'SHA-1', 'hashOutputSHA1');
-                computeAndDisplayHash(file, 'SHA-256', 'hashOutputSHA256');
-                computeAndDisplayHash(file, 'SHA-384', 'hashOutputSHA384');
-                computeAndDisplayHash(file, 'SHA-512', 'hashOutputSHA512');
-            }
+    document.getElementById('fileInput').addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const arrayBuffer = e.target.result;
+                const byteArray = new Uint8Array(arrayBuffer);
+                // Assuming ssdeep.digest function is defined in ssdeep.js
+                const hash = ssdeep.digest(byteArray);
+                document.getElementById('ssdeepHash').textContent = hash;
+            };
+            reader.readAsArrayBuffer(file);
         }
-
-        async function computeAndDisplayHash(file, hashType, outputElementId) {
-            const hash = await hashFile(file, hashType);
-            document.getElementById(outputElementId).textContent = hash;
-        }
-
-        async function hashFile(file, hashType) {
-            const buf = await file.arrayBuffer();
-            const hashBuffer = await crypto.subtle.digest(hashType, buf);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            return hashHex;
-        }
+    });
     </script>
 </body>
 </html>
