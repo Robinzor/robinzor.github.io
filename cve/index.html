@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NVD Data Explorer</title>
+</head>
+<body>
+    <div>
+        <h2>CPE Search</h2>
+        <input type="text" id="cpeQuery" placeholder="Enter search query">
+        <button onclick="getCPE()">Search CPE</button>
+        <ul id="cpeResults"></ul>
+    </div>
+
+    <div>
+        <h2>CVE Search</h2>
+        <ul id="cveResults"></ul>
+    </div>
+
+    <div>
+        <h2>CVSS Score</h2>
+        <p id="cvssResults"></p>
+    </div>
+
+    <script src="cve.js"></script>
+</body>
+</html>
