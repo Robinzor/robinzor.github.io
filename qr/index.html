@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR Code Solver</title>
     <!-- Include ZXing library from your local directory -->
-    <script src="js/zxing.js"></script>
+     <script src="js/jsQR.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -57,33 +57,20 @@
     <input type="file" id="fileInput" />
     <p id="result"></p>
 
-    <script>
+  <script>
         const fileInput = document.getElementById('fileInput');
         const resultElement = document.getElementById('result');
 
-        function nerfURL(url) {
-            return url.replace(/\./g, '[.]').replace(/:/g, '[:]').replace(/http/g, 'hxxp');
-        }
-
-        function decodeQR(img, attempt = 1) {
-            console.log(`Attempting to decode (Attempt ${attempt})...`);
-            return new Promise((resolve, reject) => {
-                const codeReader = new ZXing.BrowserQRCodeReader();
-                codeReader.decodeFromImage(img).then(result => {
-                    console.log("Decoding successful:", result.text);
-                    resolve(result.text);
-                }).catch(err => {
-                    if (attempt === 1) {
-                        console.log("First attempt failed. Retrying...");
-                        setTimeout(() => {
-                            decodeQR(img, 2).then(resolve).catch(reject);
-                        }, 100);
-                    } else {
-                        console.log("Both decoding attempts failed.");
-                        reject(err);
-                    }
-                });
-            });
+function nerfURL(url) {
+    return url.replace(/\./g, '[.]').replace(/:\/\//g, '[://]').replace(/http/g, 'hxxp');
+}
+        function decodeQRWithJsQR(imageData) {
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            if (code) {
+                return code.data;
+            } else {
+                throw new Error("Decoding failed with jsQR.");
+            }
         }
 
         fileInput.addEventListener('change', function() {
@@ -96,20 +83,34 @@
                     const img = new Image();
                     img.onload = function() {
                         console.log("Image loaded.");
-                        decodeQR(img).then(decodedText => {
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        context.drawImage(img, 0, 0, img.width, img.height);
+                        const imageData = context.getImageData(0, 0, img.width, img.height);
+                        try {
+                            const decodedText = decodeQRWithJsQR(imageData);
                             resultElement.textContent = 'Decoded QR Code: ' + nerfURL(decodedText);
-                        }).catch(err => {
-                            resultElement.textContent = 'Error decoding QR Code: ' + err;
-                        });
-                    }
+                        } catch (err) {
+                            resultElement.textContent = 'Error decoding QR Code: ' + err.message;
+                        }
+                    };
+                    img.onerror = function() {
+                        resultElement.textContent = 'Error loading image.';
+                    };
                     img.src = event.target.result;
-                }
+                };
+                reader.onerror = function() {
+                    resultElement.textContent = 'Error reading file.';
+                };
                 reader.readAsDataURL(file);
                 // Reset the input value to allow selecting the same file again
                 fileInput.value = '';
             }
         });
     </script>
+
 </body>
 
 </html>
