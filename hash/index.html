@@ -66,12 +66,31 @@
         .calculated::before {
             background-color: #4CAF50; /* Green background to indicate calculation */
         }
+
+        #progress-container {
+            width: 80%;
+            background-color: #ddd;
+            border-radius: 5px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        #progress-bar {
+            width: 0%;
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 5px;
+            transition: width 0.3s;
+        }
     </style>
 </head>
 <body>
     <h1>File Hasher</h1>
     <label for="fileInput">Choose File</label>
     <input type="file" id="fileInput" style="display: none;" onchange="handleFileChange()"/>
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
     <div id="hashes" class="hash-output">
         <div class="hash-name" id="sha1Name">SHA-1: <span id="sha1Hash">N/A</span></div>
         <div class="hash-name" id="sha256Name">SHA-256: <span id="sha256Hash">N/A</span></div>
@@ -83,25 +102,48 @@
     async function handleFileChange() {
         const fileInput = document.getElementById('fileInput');
         const file = fileInput.files[0];
-        if (file) {
-            const arrayBuffer = await file.arrayBuffer();
-            const byteArray = new Uint8Array(arrayBuffer);
+        if (!file) return;
 
-            // SHA-1
-            computeAndDisplayHash(byteArray, 'SHA-1', 'sha1Hash', 'sha1Name');
-            // SHA-256
-            computeAndDisplayHash(byteArray, 'SHA-256', 'sha256Hash', 'sha256Name');
+        resetProgress();
 
-            // SSDeep
-            try {
-                const ssdeepHash = ssdeep.digest(byteArray); // Ensure ssdeep.digest is implemented
-                document.getElementById('ssdeepHash').textContent = ssdeepHash;
-                document.getElementById('ssdeepName').classList.add('calculated');
-            } catch (error) {
-                console.error('Error calculating SSDeep hash:', error);
-                document.getElementById('ssdeepHash').textContent = 'Error';
-            }
+        const progressContainer = document.getElementById('progress-container');
+        progressContainer.style.display = 'block'; // Show the progress bar container
+
+        const arrayBuffer = await file.arrayBuffer();
+        const byteArray = new Uint8Array(arrayBuffer);
+
+        // SHA-1
+        updateProgressBar(30);
+        computeAndDisplayHash(byteArray, 'SHA-1', 'sha1Hash', 'sha1Name');
+
+        // SHA-256
+        updateProgressBar(60);
+        computeAndDisplayHash(byteArray, 'SHA-256', 'sha256Hash', 'sha256Name');
+
+        // SSDeep
+        updateProgressBar(90);
+        try {
+            const ssdeepHash = ssdeep.digest(byteArray); // Ensure ssdeep.digest is implemented
+            document.getElementById('ssdeepHash').textContent = ssdeepHash;
+            document.getElementById('ssdeepName').classList.add('calculated');
+        } catch (error) {
+            console.error('Error calculating SSDeep hash:', error);
+            document.getElementById('ssdeepHash').textContent = 'Error';
         }
+
+        updateProgressBar(100); // Complete the progress bar
+    }
+
+    function resetProgress() {
+        const progressBar = document.getElementById('progress-bar');
+        progressBar.style.width = '0%';
+        const progressContainer = document.getElementById('progress-container');
+        progressContainer.style.display = 'none';
+    }
+
+    function updateProgressBar(progress) {
+        const progressBar = document.getElementById('progress-bar');
+        progressBar.style.width = progress + '%';
     }
 
     async function computeAndDisplayHash(data, algorithm, outputElementId, nameElementId) {
