@@ -5,8 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR Code Solver</title>
-    <!-- Include ZXing library from your local directory -->
-     <script src="js/jsQR.js"></script>
+    <script src="js/jsQR.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -39,6 +38,22 @@
             background-color: #ddd;
         }
 
+        #progress-container {
+            width: 80%;
+            background-color: #ddd;
+            border-radius: 5px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        #progress-bar {
+            width: 0%;
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 5px;
+            transition: width 0.3s;
+        }
+
         #result {
             margin-top: 20px;
             padding: 10px;
@@ -52,37 +67,48 @@
 </head>
 
 <body>
-    <h1> QR Code Solver</h1>
+    <h1>QR Code Solver</h1>
     <label for="fileInput">Choose File</label>
     <input type="file" id="fileInput" />
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
     <p id="result"></p>
 
-  <script>
+    <script>
         const fileInput = document.getElementById('fileInput');
         const resultElement = document.getElementById('result');
+        const progressBar = document.getElementById('progress-bar');
+        const progressContainer = document.getElementById('progress-container');
 
-function nerfURL(url) {
-    return url.replace(/\./g, '[.]').replace(/:\/\//g, '[://]').replace(/http/g, 'hxxp');
-}
-        function decodeQRWithJsQR(imageData) {
-            const code = jsQR(imageData.data, imageData.width, imageData.height);
-            if (code) {
-                return code.data;
-            } else {
-                throw new Error("Decoding failed with jsQR.");
-            }
+        function nerfURL(url) {
+            return url.replace(/\./g, '[.]').replace(/:\/\//g, '[://]').replace(/http/g, 'hxxp');
         }
 
-        fileInput.addEventListener('change', function() {
+        function updateProgressBar(progress) {
+            progressBar.style.width = progress + '%';
+        }
+
+        function resetProgress() {
+            progressBar.style.width = '0%';
+            progressContainer.style.display = 'none';
+        }
+
+        fileInput.addEventListener('change', function () {
             console.log("File input changed.");
             const file = fileInput.files[0];
             if (file) {
+                resetProgress();
+                progressContainer.style.display = 'block'; // Show the progress bar container
+
                 const reader = new FileReader();
-                reader.onload = function(event) {
+                reader.onload = function (event) {
                     console.log("FileReader loaded.");
                     const img = new Image();
-                    img.onload = function() {
+                    img.onload = function () {
                         console.log("Image loaded.");
+                        updateProgressBar(50); // Halfway after image load
+
                         const canvas = document.createElement('canvas');
                         const context = canvas.getContext('2d');
                         canvas.width = img.width;
@@ -92,23 +118,36 @@ function nerfURL(url) {
                         try {
                             const decodedText = decodeQRWithJsQR(imageData);
                             resultElement.textContent = 'Decoded QR Code: ' + nerfURL(decodedText);
+                            updateProgressBar(100); // Complete the progress bar
                         } catch (err) {
                             resultElement.textContent = 'Error decoding QR Code: ' + err.message;
+                            updateProgressBar(100); // Complete the progress bar
                         }
                     };
-                    img.onerror = function() {
+                    img.onerror = function () {
                         resultElement.textContent = 'Error loading image.';
+                        updateProgressBar(100); // Complete the progress bar
                     };
                     img.src = event.target.result;
                 };
-                reader.onerror = function() {
+                reader.onerror = function () {
                     resultElement.textContent = 'Error reading file.';
+                    updateProgressBar(100); // Complete the progress bar
                 };
                 reader.readAsDataURL(file);
                 // Reset the input value to allow selecting the same file again
                 fileInput.value = '';
             }
         });
+
+        function decodeQRWithJsQR(imageData) {
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            if (code) {
+                return code.data;
+            } else {
+                throw new Error("Decoding failed with jsQR.");
+            }
+        }
     </script>
 
 </body>
