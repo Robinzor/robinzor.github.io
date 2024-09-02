@@ -45,6 +45,7 @@
             text-align: center;
             word-break: break-word;
             display: none; /* Initially hidden */
+            white-space: pre-wrap; /* Preserve formatting */
         }
 
         .supported-types {
@@ -78,9 +79,9 @@
     <div id="progress-container">
         <div id="progress-bar"></div>
     </div>
-    <p id="output"></p>
+    <div id="output"></div>
     <div class="supported-types">
-        <p>Tested with file types: PDF, Word (.docx), Excel (.xlsx)</p>
+        <p>Tested with file types: PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), Visio (.vsdx)</p>
     </div>
 
     <!-- Include local pako.js for decompression -->
@@ -123,6 +124,8 @@
 
                 if (foundAnyUrls) {
                     document.getElementById('output').style.display = 'block';
+                } else {
+                    displayOutput("No URLs found.");
                 }
 
                 updateProgressBar(100); // Complete the progress bar
@@ -154,6 +157,7 @@
             const streams = extractStreams(binaryString);
 
             let foundAnyUrls = false;
+            const foundUrls = new Set(); // Store unique URLs
 
             streams.forEach((stream, index) => {
                 const decompressedData = decompressStream(stream);
@@ -161,9 +165,10 @@
                     const urls = findUrlsInStream(decompressedData);
                     if (urls) {
                         urls.forEach(url => {
-                            if (!isIgnoredDomain(url)) {
+                            if (!isIgnoredDomain(url) && !foundUrls.has(url)) {
                                 foundAnyUrls = true;
-                                displayOutput(`Found URL: ${url}`, true);
+                                foundUrls.add(url); // Add to the set
+                                displayOutput(`Found URL: ${url}`);
                             }
                         });
                     }
@@ -178,6 +183,7 @@
             const arrayBuffer = await file.arrayBuffer();
             const zip = await JSZip.loadAsync(arrayBuffer);
             let foundAnyUrls = false;
+            const foundUrls = new Set(); // Store unique URLs
 
             const entries = Object.keys(zip.files);
             for (let i = 0; i < entries.length; i++) {
@@ -188,9 +194,10 @@
                     const urls = findUrlsInText(content);
                     if (urls) {
                         urls.forEach(url => {
-                            if (!isIgnoredDomain(url)) {
+                            if (!isIgnoredDomain(url) && !foundUrls.has(url)) {
                                 foundAnyUrls = true;
-                                displayOutput(`Found URL: ${url}`, true);
+                                foundUrls.add(url); // Add to the set
+                                displayOutput(`Found URL: ${url}`);
                             }
                         });
                     }
