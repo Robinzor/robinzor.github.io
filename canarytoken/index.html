@@ -17,6 +17,10 @@
             margin: 0;
         }
 
+        #fileInput {
+            display: none; /* Hide the actual file input */
+        }
+
         label {
             padding: 10px 15px;
             background-color: #fff;
@@ -32,7 +36,7 @@
             background-color: #ddd;
         }
 
-        .output-container {
+        #output {
             margin-top: 20px;
             padding: 10px;
             border: 1px solid #fff;
@@ -40,41 +44,43 @@
             max-width: 80%;
             text-align: center;
             word-break: break-word;
+            display: none; /* Initially hidden */
         }
 
-        .output-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
+        .supported-types {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #bbb;
         }
 
-        .output-item:last-child {
-            margin-bottom: 0;
+        #progress-container {
+            width: 80%;
+            background-color: #ddd;
+            border-radius: 5px;
+            margin-top: 20px;
+            display: none;
         }
 
-        .output-item::before {
-            content: "";
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-            background-color: transparent;
-            border: 1px solid #fff;
-        }
-
-        .calculated::before {
-            background-color: #4CAF50; /* Green background to indicate detection */
+        #progress-bar {
+            width: 0%;
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 5px;
+            transition: width 0.3s;
         }
     </style>
 </head>
 <body>
     <h1>Canarytoken Scanner</h1>
     <label for="fileInput">Choose File</label>
-    <input type="file" id="fileInput" style="display: none;" />
-    <div id="output" class="output-container" style="display: none;"></div>
+    <input type="file" id="fileInput" />
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
+    <p id="output"></p>
     <div class="supported-types">
-        <p>Supported file types: PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx)</p>
+        <p>Tested with file types: PDF, Word (.docx), Excel (.xlsx)</p>
     </div>
 
     <!-- Include local pako.js for decompression -->
@@ -93,29 +99,53 @@
         document.getElementById('fileInput').addEventListener('change', async function(event) {
             const file = event.target.files[0];
             if (!file) return;
-            console.log(`File selected: ${file.name}`);
-            
+
+            resetProgress();
+            resetOutput();
+
             const fileName = file.name.toLowerCase();
             let foundAnyUrls = false;
+
+            const progressBar = document.getElementById('progress-bar');
+            const progressContainer = document.getElementById('progress-container');
+
+            progressContainer.style.display = 'block'; // Show the progress bar container
 
             try {
                 if (fileName.endsWith('.pdf')) {
                     foundAnyUrls = await handlePdfFile(file);
-                } else if (fileName.endsWith('.docx') || fileName.endsWith('.xlsx') || fileName.endsWith('.pptx')) {
+                } else if (fileName.endsWith('.docx') || fileName.endsWith('.xlsx') || fileName.endsWith('.pptx') || fileName.endsWith('.vsdx')) {
                     foundAnyUrls = await handleOfficeFile(file);
                 } else {
                     displayOutput("Unsupported file type.");
+                    return;
                 }
 
                 if (foundAnyUrls) {
                     document.getElementById('output').style.display = 'block';
                 }
 
+                updateProgressBar(100); // Complete the progress bar
+
             } catch (error) {
                 console.error("Error processing file:", error);
                 displayOutput("Error processing file: " + error.message);
+                updateProgressBar(100);
             }
         });
+
+        function resetProgress() {
+            const progressBar = document.getElementById('progress-bar');
+            progressBar.style.width = '0%';
+            const progressContainer = document.getElementById('progress-container');
+            progressContainer.style.display = 'none';
+        }
+
+        function resetOutput() {
+            const outputElement = document.getElementById('output');
+            outputElement.textContent = '';
+            outputElement.style.display = 'none';
+        }
 
         async function handlePdfFile(file) {
             const arrayBuffer = await file.arrayBuffer();
@@ -125,7 +155,7 @@
 
             let foundAnyUrls = false;
 
-            streams.forEach(stream => {
+            streams.forEach((stream, index) => {
                 const decompressedData = decompressStream(stream);
                 if (decompressedData) {
                     const urls = findUrlsInStream(decompressedData);
@@ -138,6 +168,7 @@
                         });
                     }
                 }
+                updateProgressBar((index + 1) / streams.length * 100);
             });
 
             return foundAnyUrls;
@@ -148,7 +179,10 @@
             const zip = await JSZip.loadAsync(arrayBuffer);
             let foundAnyUrls = false;
 
-            await zip.forEach(async (relativePath, zipEntry) => {
+            const entries = Object.keys(zip.files);
+            for (let i = 0; i < entries.length; i++) {
+                const relativePath = entries[i];
+                const zipEntry = zip.files[relativePath];
                 if (!zipEntry.dir) {
                     const content = await zipEntry.async("string");
                     const urls = findUrlsInText(content);
@@ -161,7 +195,8 @@
                         });
                     }
                 }
-            });
+                updateProgressBar((i + 1) / entries.length * 100);
+            }
 
             return foundAnyUrls;
         }
@@ -199,12 +234,15 @@
             return ignoredDomains.some(domain => url.includes(domain));
         }
 
-        function displayOutput(message, isCalculated = false) {
-            const div = document.createElement('div');
-            div.textContent = message;
-            div.className = 'output-item';
-            if (isCalculated) div.classList.add('calculated');
-            document.getElementById('output').appendChild(div);
+        function displayOutput(message) {
+            const outputElement = document.getElementById('output');
+            outputElement.textContent += message + '\n';
+            outputElement.style.display = 'block'; // Show the output
+        }
+
+        function updateProgressBar(progress) {
+            const progressBar = document.getElementById('progress-bar');
+            progressBar.style.width = progress + '%';
         }
     </script>
 </body>
