@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canarytoken Solver</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(45deg, #000, #333);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        label {
+            padding: 10px 15px;
+            background-color: #fff;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: inline-block;
+        }
+
+        label:hover {
+            background-color: #ddd;
+        }
+
+        .output-container {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #fff;
+            border-radius: 5px;
+            max-width: 80%;
+            text-align: center;
+            word-break: break-word;
+        }
+
+        .output-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .output-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .output-item::before {
+            content: "";
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background-color: transparent;
+            border: 1px solid #fff;
+        }
+
+        .calculated::before {
+            background-color: #4CAF50; /* Green background to indicate detection */
+        }
+    </style>
+</head>
+<body>
+    <h1>Canarytoken Scanner</h1>
+    <label for="fileInput">Choose File</label>
+    <input type="file" id="fileInput" style="display: none;" />
+    <div id="output" class="output-container" style="display: none;"></div>
+    <div class="supported-types">
+        <p>Supported file types: PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx)</p>
+    </div>
+
+    <!-- Include local pako.js for decompression -->
+    <script src="pako.js"></script>
+    <!-- Include local jszip.js for handling ZIP files -->
+    <script src="jszip.js"></script>
+
+    <script>
+        const ignoredDomains = [
+            'schemas.openxmlformats.org',
+            'schemas.microsoft.com',
+            'purl.org',
+            'w3.org'
+        ];
+
+        document.getElementById('fileInput').addEventListener('change', async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            console.log(`File selected: ${file.name}`);
+            
+            const fileName = file.name.toLowerCase();
+            let foundAnyUrls = false;
+
+            try {
+                if (fileName.endsWith('.pdf')) {
+                    foundAnyUrls = await handlePdfFile(file);
+                } else if (fileName.endsWith('.docx') || fileName.endsWith('.xlsx') || fileName.endsWith('.pptx')) {
+                    foundAnyUrls = await handleOfficeFile(file);
+                } else {
+                    displayOutput("Unsupported file type.");
+                }
+
+                if (foundAnyUrls) {
+                    document.getElementById('output').style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error("Error processing file:", error);
+                displayOutput("Error processing file: " + error.message);
+            }
+        });
+
+        async function handlePdfFile(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const byteArray = new Uint8Array(arrayBuffer);
+            const binaryString = String.fromCharCode(...byteArray);
+            const streams = extractStreams(binaryString);
+
+            let foundAnyUrls = false;
+
+            streams.forEach(stream => {
+                const decompressedData = decompressStream(stream);
+                if (decompressedData) {
+                    const urls = findUrlsInStream(decompressedData);
+                    if (urls) {
+                        urls.forEach(url => {
+                            if (!isIgnoredDomain(url)) {
+                                foundAnyUrls = true;
+                                displayOutput(`Found URL: ${url}`, true);
+                            }
+                        });
+                    }
+                }
+            });
+
+            return foundAnyUrls;
+        }
+
+        async function handleOfficeFile(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const zip = await JSZip.loadAsync(arrayBuffer);
+            let foundAnyUrls = false;
+
+            await zip.forEach(async (relativePath, zipEntry) => {
+                if (!zipEntry.dir) {
+                    const content = await zipEntry.async("string");
+                    const urls = findUrlsInText(content);
+                    if (urls) {
+                        urls.forEach(url => {
+                            if (!isIgnoredDomain(url)) {
+                                foundAnyUrls = true;
+                                displayOutput(`Found URL: ${url}`, true);
+                            }
+                        });
+                    }
+                }
+            });
+
+            return foundAnyUrls;
+        }
+
+        function extractStreams(binaryString) {
+            const streamRegex = /stream[\r\n\s]+(.*?)endstream/gms;
+            let match;
+            let streams = [];
+            while ((match = streamRegex.exec(binaryString)) !== null) {
+                streams.push(match[1].trim());
+            }
+            return streams;
+        }
+
+        function decompressStream(stream) {
+            try {
+                const compressedData = Uint8Array.from(stream, c => c.charCodeAt(0));
+                return pako.inflate(compressedData);
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function findUrlsInStream(binaryData) {
+            const text = new TextDecoder("utf-8").decode(binaryData);
+            return findUrlsInText(text);
+        }
+
+        function findUrlsInText(text) {
+            const urlPattern = /https?:\/\/[^\s<>"'{}|\\^`]+/g;
+            return text.match(urlPattern);
+        }
+
+        function isIgnoredDomain(url) {
+            return ignoredDomains.some(domain => url.includes(domain));
+        }
+
+        function displayOutput(message, isCalculated = false) {
+            const div = document.createElement('div');
+            div.textContent = message;
+            div.className = 'output-item';
+            if (isCalculated) div.classList.add('calculated');
+            document.getElementById('output').appendChild(div);
+        }
+    </script>
+</body>
+</html>
