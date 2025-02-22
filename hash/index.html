@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>File Hasher with Multiple Hash Types</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/spark-md5/3.0.2/spark-md5.min.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -92,6 +93,7 @@
         <div id="progress-bar"></div>
     </div>
     <div id="hashes" class="hash-output">
+        <div class="hash-name" id="md5Name">MD5: <span id="md5Hash">N/A</span></div>
         <div class="hash-name" id="sha1Name">SHA-1: <span id="sha1Hash">N/A</span></div>
         <div class="hash-name" id="sha256Name">SHA-256: <span id="sha256Hash">N/A</span></div>
         <div class="hash-name" id="ssdeepName">SSDeep: <span id="ssdeepHash">N/A</span></div>
@@ -112,6 +114,10 @@
         const arrayBuffer = await file.arrayBuffer();
         const byteArray = new Uint8Array(arrayBuffer);
 
+        // MD5
+        updateProgressBar(10);
+        computeAndDisplayMD5(byteArray, 'md5Hash', 'md5Name');
+
         // SHA-1
         updateProgressBar(30);
         computeAndDisplayHash(byteArray, 'SHA-1', 'sha1Hash', 'sha1Name');
@@ -123,7 +129,7 @@
         // SSDeep
         updateProgressBar(90);
         try {
-            const ssdeepHash = ssdeep.digest(byteArray); // Ensure ssdeep.digest is implemented
+            const ssdeepHash = ssdeep.digest(byteArray);
             document.getElementById('ssdeepHash').textContent = ssdeepHash;
             document.getElementById('ssdeepName').classList.add('calculated');
         } catch (error) {
@@ -155,6 +161,19 @@
             document.getElementById(nameElementId).classList.add('calculated');
         } catch (error) {
             console.error(`Error calculating ${algorithm} hash:`, error);
+            document.getElementById(outputElementId).textContent = 'Error';
+        }
+    }
+
+    function computeAndDisplayMD5(data, outputElementId, nameElementId) {
+        try {
+            const spark = new SparkMD5.ArrayBuffer();
+            spark.append(data.buffer);
+            const md5Hash = spark.end();
+            document.getElementById(outputElementId).textContent = md5Hash;
+            document.getElementById(nameElementId).classList.add('calculated');
+        } catch (error) {
+            console.error('Error calculating MD5 hash:', error);
             document.getElementById(outputElementId).textContent = 'Error';
         }
     }
