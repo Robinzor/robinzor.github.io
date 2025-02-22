@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hexdump Viewer</title>
+    <style>
+        body {
+            font-family: monospace;
+            background-color: #222;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        input {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        pre {
+            background-color: #333;
+            padding: 15px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 800px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            text-align: left;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Hexdump Viewer</h1>
+    <input type="file" id="fileInput">
+    <pre id="output"></pre>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const bytes = new Uint8Array(e.target.result);
+                let output = '';
+
+                for (let i = 0; i < bytes.length; i += 16) {
+                    // Hex offset (address)
+                    let hexOffset = i.toString(16).padStart(8, '0');
+
+                    // Hex data (16 bytes per row)
+                    let hexBytes = [];
+                    let asciiChars = [];
+                    for (let j = 0; j < 16; j++) {
+                        if (i + j < bytes.length) {
+                            let byte = bytes[i + j];
+                            hexBytes.push(byte.toString(16).padStart(2, '0'));
+                            asciiChars.push(byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : '.');
+                        } else {
+                            hexBytes.push('  '); // Fill in empty spaces for alignment
+                        }
+                    }
+
+                    // Format the hexdump in classic xxd-style
+                    output += `${hexOffset}: ${hexBytes.slice(0, 8).join(' ')}  ${hexBytes.slice(8).join(' ')}  |${asciiChars.join('')}|\n`;
+                }
+
+                document.getElementById('output').textContent = output;
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
+    </script>
+
+</body>
+</html>
