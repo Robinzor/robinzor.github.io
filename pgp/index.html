@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PGP Generator</title>
+    <script src="openpgp.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(45deg, #000, #222);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 {
+            margin-bottom: 10px;
+        }
+        .container {
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+        select, input, textarea, button {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 5px;
+            border: 1px solid #fff;
+            background: #222;
+            color: #fff;
+        }
+        button {
+            background-color: #fff;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #ddd;
+        }
+        textarea {
+            min-height: 80px;
+            white-space: pre-wrap;
+        }
+        .hidden {
+            display: none;
+        }
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>PGP Generator</h1>
+    <div class="container">
+        <label>Select mode:</label>
+        <select id="modeSelector" onchange="toggleMode()">
+            <option value="encrypt" selected>Encrypt</option>
+            <option value="decrypt">Decrypt</option>
+        </select>
+        <div id="generateKeySection">
+        <div id="keyInfo">No keys generated yet.</div>
+        
+        <!-- Email & Generate Keys section (hidden in decrypt mode) -->
+        
+            <input type="email" id="userEmail" placeholder="Enter your email" required />
+            <button onclick="generateKeys()">Generate Keys</button>
+        
+
+        <div id="userEmailDisplay" class="hidden"></div>
+
+        <div class="button-container">
+            <button id="downloadKeys" onclick="downloadKeys()" disabled>Download Keys</button>
+        </div>
+    </div>
+        <!-- Encryption Section -->
+        <div id="encryptSection">
+            <input type="file" id="uploadPublicKeyEncrypt" onchange="handleKeyUpload(event, 'public')" />
+            <textarea id="publicKey" placeholder="Public Key" readonly></textarea>
+            <textarea id="message" placeholder="Enter your message"></textarea>
+            <button onclick="encryptMessage()">Encrypt</button>
+            <textarea id="encryptedMessage" placeholder="Encrypted message" readonly></textarea>
+        </div>
+
+        <!-- Decryption Section (hidden in encrypt mode) -->
+        <div id="decryptSection" class="hidden">
+            <input type="file" id="uploadPrivateKeyDecrypt" onchange="handleKeyUpload(event, 'private')" />
+            <textarea id="privateKey" placeholder="Private Key"></textarea>
+            <textarea id="encryptedMessageInput" placeholder="Encrypted message"></textarea>
+            <button onclick="decryptMessage()">Decrypt</button>
+            <textarea id="decryptedMessage" placeholder="Decrypted message" readonly></textarea>
+        </div>
+    </div>
+
+    <script>
+        let privateKeyArmored = "", publicKeyArmored = "";
+        let userEmail = ""; // Variable for email
+        let generatedPassphrase = ""; // Variable for storing the passphrase
+
+        // Toggle between encryption and decryption modes
+        function toggleMode() {
+            const mode = document.getElementById("modeSelector").value;
+            
+            // Toggle visibility for sections based on mode
+            document.getElementById("encryptSection").classList.toggle("hidden", mode !== "encrypt");
+            document.getElementById("decryptSection").classList.toggle("hidden", mode !== "decrypt");
+            
+            // Hide email & key generation when decrypt mode is selected
+            document.getElementById("generateKeySection").classList.toggle("hidden", mode === "decrypt");
+            document.getElementById("downloadKeys").disabled = mode === "decrypt"; // Disable Download button in decrypt mode
+        }
+
+        // Function to generate keys
+        async function generateKeys() {
+            try {
+                userEmail = document.getElementById("userEmail").value.trim();
+                if (!userEmail) {
+                    return alert("Email is required.");
+                }
+
+                generatedPassphrase = prompt("Enter a passphrase for your keys:");
+                if (!generatedPassphrase) return alert("Passphrase is required.");
+
+                const { privateKey, publicKey } = await openpgp.generateKey({
+                    type: 'rsa',
+                    rsaBits: 4096,
+                    userIDs: [{ email: userEmail }],
+                    passphrase: generatedPassphrase
+                });
+
+                privateKeyArmored = privateKey;
+                publicKeyArmored = publicKey;
+
+                document.getElementById("publicKey").value = publicKeyArmored;
+                document.getElementById("privateKey").value = privateKeyArmored;
+                document.getElementById("keyInfo").innerText = "Keys successfully generated!";
+                document.getElementById("downloadKeys").disabled = false;
+
+                // Hide email display since it's redundant
+                document.getElementById("userEmailDisplay").classList.add("hidden");
+
+            } catch (error) {
+                console.error("Error generating keys:", error);
+                alert("Failed to generate keys.");
+            }
+        }
+
+        // Function to download both public and private keys
+        async function downloadKeys() {
+            if (!privateKeyArmored) return alert("Generate keys first!");
+
+            // If the passphrase isn't set yet, ask the user for it
+            if (!generatedPassphrase) {
+                generatedPassphrase = prompt("Enter a passphrase to encrypt your private key:");
+                if (!generatedPassphrase) return alert("Passphrase is required to encrypt the private key.");
+            }
+
+            try {
+                // Encrypt the private key with the passphrase
+                const encryptedPrivateKey = await openpgp.encrypt({
+                    message: await openpgp.createMessage({ text: privateKeyArmored }),
+                    passwords: [generatedPassphrase],
+                    format: 'armored' // Use 'format' instead of 'armor'
+                });
+
+                // Function to trigger the download
+                const download = (filename, text) => {
+                    const element = document.createElement("a");
+                    element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(text));
+                    element.setAttribute("download", filename);
+                    element.style.display = "none";
+                    document.body.appendChild(element);
+                    element.click();
+                    document.body.removeChild(element);
+                };
+
+                // Download the encrypted private key and public key unencrypted
+                download("publicKey.asc", publicKeyArmored);
+                download("encryptedPrivateKey.asc", encryptedPrivateKey);
+
+            } catch (error) {
+                console.error("Error encrypting private key:", error);
+                alert(`Failed to encrypt the private key: ${error.message}`);
+            }
+        }
+
+        // Function to encrypt the message
+        async function encryptMessage() {
+            try {
+                const message = document.getElementById("message").value.trim();
+                const publicKeyInput = document.getElementById("publicKey").value.trim();
+                
+                if (!publicKeyInput) return alert("Public key is required for encryption.");
+                if (!message) return alert("Message cannot be empty.");
+
+                const publicKey = await openpgp.readKey({ armoredKey: publicKeyInput });
+
+                const encrypted = await openpgp.encrypt({
+                    message: await openpgp.createMessage({ text: message }),
+                    encryptionKeys: publicKey
+                });
+
+                // Show the encrypted message
+                document.getElementById("encryptedMessage").value = encrypted; // Directly use encrypted (without armor)
+            } catch (error) {
+                console.error("Error encrypting message:", error);
+                alert("Encryption failed.");
+            }
+        }
+        async function decryptMessage() {
+    try {
+        console.log("Starting decryption...");
+
+        const privateKeyArmored = document.getElementById("privateKey").value.trim();
+        const encryptedMessage = document.getElementById("encryptedMessageInput").value.trim();
+
+        if (!privateKeyArmored) {
+            alert("Private key is required for decryption.");
+            return;
+        }
+        if (!encryptedMessage) {
+            alert("No encrypted message provided.");
+            return;
+        }
+
+        console.log("Reading private key...");
+        let privateKey = await openpgp.readPrivateKey({ armoredKey: privateKeyArmored });
+
+        console.log("Private key detected. Asking for passphrase...");
+        const passphrase = prompt("Enter the passphrase to unlock the private key:");
+        if (!passphrase) {
+            alert("Passphrase is required to unlock the key.");
+            return;
+        }
+
+        console.log("Decrypting private key...");
+        privateKey = await openpgp.decryptKey({
+            privateKey,
+            passphrase
+        });
+
+        console.log("Reading encrypted message...");
+        const message = await openpgp.readMessage({
+            armoredMessage: encryptedMessage
+        });
+
+        console.log("Decrypting message...");
+        const { data: decrypted } = await openpgp.decrypt({
+            message,
+            decryptionKeys: privateKey
+        });
+
+        console.log("Message successfully decrypted!");
+        document.getElementById("decryptedMessage").value = decrypted;
+
+    } catch (error) {
+        console.error("Decryption error:", error);
+        alert("Decryption failed. Please check your passphrase and try again.");
+    }
+}
+
+
+        // Function to handle key upload and decryption
+        async function handleKeyUpload(event, keyType) {
+            const file = event.target.files[0];
+            if (!file) return alert("No file selected.");
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const encryptedKey = e.target.result;
+                    let decryptedMessage;
+
+                    // If it's a private key, ask for passphrase
+                    if (keyType === 'private') {
+                        const passphrase = prompt("Enter passphrase to decrypt the key:");
+                        if (!passphrase) return alert("Passphrase is required.");
+                        decryptedMessage = await openpgp.decrypt({
+                            message: await openpgp.readMessage({ armoredMessage: encryptedKey }),
+                            passwords: [passphrase],
+                            format: 'armored'
+                        });
+                    } else {
+                        // For public key, no passphrase is needed
+                        decryptedMessage = await openpgp.readKey({ armoredKey: encryptedKey });
+                    }
+
+                    // Set the decrypted key to the corresponding textarea
+                    if (keyType === "public") {
+                        document.getElementById("publicKey").value = decryptedMessage.value || decryptedMessage.armor();
+                    } else if (keyType === "private") {
+                        document.getElementById("privateKey").value = decryptedMessage.data || decryptedMessage.armor();
+                    }
+                } catch (error) {
+                    console.error("Error decrypting key:", error);
+                    alert("Failed to decrypt the key.");
+                }
+            };
+
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
