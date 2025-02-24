@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thumbcache Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #222;
+            color: #fff;
+            text-align: center;
+            padding: 20px;
+        }
+        input {
+            margin: 20px;
+        }
+        .thumbnails {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .thumbnail {
+            border: 1px solid #fff;
+            padding: 5px;
+            background: #444;
+        }
+        img {
+            max-width: 150px;
+            height: auto;
+        }
+        .file-path {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #ccc;
+        }
+        .default-path {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #888;
+        }
+        .progress-container {
+            width: 80%;
+            background: #444;
+            margin: 20px auto;
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: #4caf50;
+            transition: width 0.2s;
+        }
+    </style>
+</head>
+<body>
+    <h1>Thumbcache Viewer</h1>
+    <input type="file" id="fileInput" accept=".db" />
+    <div class="file-path" id="filePath">No file selected</div><br>
+    <div class="default-path">Directory: <br> C:\Users\%Username%\AppData\Local\Microsoft\Windows\Explorer\ <br><br> Filename: <br> thumbcache_*.db   </div>
+  <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="thumbnails" id="thumbnails"></div>
+    
+    <script>
+        document.getElementById('fileInput').addEventListener('change', handleFile);
+        
+        function handleFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            console.log(`[Thumbcache Viewer] Loaded file: ${file.name}`);
+            document.getElementById('filePath').textContent = `File: ${file.name}`;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                parseThumbcache(new Uint8Array(e.target.result));
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function parseThumbcache(data) {
+            console.log("[Thumbcache Viewer] Parsing thumbcache...");
+            const thumbnailsContainer = document.getElementById('thumbnails');
+            thumbnailsContainer.innerHTML = "";
+            
+            let offset = 0;
+            let imagesFound = 0;
+            const totalSize = data.length;
+            const progressBar = document.getElementById('progressBar');
+            const imageElements = [];
+            
+            function processChunk() {
+                const chunkSize = 100000; // Verhoog snelheid door grotere stappen
+                const end = Math.min(offset + chunkSize, totalSize);
+                
+                while (offset < end) {
+                    if (data[offset] === 0x42 && data[offset + 1] === 0x4D) {
+                        console.log(`[Thumbcache Viewer] BMP image detected at offset ${offset}`);
+                        const endOffset = findImageEnd(data, offset);
+                        displayImage(data.slice(offset, endOffset), 'image/bmp', imageElements);
+                        offset = endOffset;
+                        imagesFound++;
+                    } else {
+                        offset++;
+                    }
+                }
+                
+                progressBar.style.width = `${(offset / totalSize) * 100}%`;
+                
+                if (offset < totalSize) {
+                    requestAnimationFrame(processChunk);
+                } else {
+                    imageElements.forEach(img => thumbnailsContainer.appendChild(img));
+                    console.log(`[Thumbcache Viewer] Extraction complete. ${imagesFound} images found.`);
+                }
+            }
+            
+            requestAnimationFrame(processChunk);
+        }
+        
+        function findImageEnd(data, start) {
+            const fileSize = (data[start + 2] | (data[start + 3] << 8) | (data[start + 4] << 16) | (data[start + 5] << 24));
+            console.log(`[Thumbcache Viewer] BMP file size detected: ${fileSize} bytes`);
+            return start + fileSize;
+        }
+        
+        function displayImage(blobData, mimeType, imageElements) {
+            const blob = new Blob([blobData], { type: mimeType });
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(blob);
+            img.classList.add('thumbnail');
+            img.onerror = function() {
+                console.error("[Thumbcache Viewer] Error displaying image:", img.src);
+            };
+            imageElements.push(img);
+        }
+    </script>
+</body>
+</html>
