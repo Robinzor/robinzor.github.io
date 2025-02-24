@@ -62,7 +62,7 @@
     <input type="file" id="fileInput" accept=".db" />
     <div class="file-path" id="filePath">No file selected</div><br>
     <div class="default-path">Directory: <br> C:\Users\%Username%\AppData\Local\Microsoft\Windows\Explorer\ <br><br> Filename: <br> thumbcache_*.db   </div>
-  <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
     <div class="thumbnails" id="thumbnails"></div>
     
     <script>
@@ -94,14 +94,28 @@
             const imageElements = [];
             
             function processChunk() {
-                const chunkSize = 100000; // Verhoog snelheid door grotere stappen
+                const chunkSize = 100000; 
                 const end = Math.min(offset + chunkSize, totalSize);
                 
                 while (offset < end) {
                     if (data[offset] === 0x42 && data[offset + 1] === 0x4D) {
                         console.log(`[Thumbcache Viewer] BMP image detected at offset ${offset}`);
-                        const endOffset = findImageEnd(data, offset);
+                        const endOffset = findImageEnd(data, offset, 'BMP');
                         displayImage(data.slice(offset, endOffset), 'image/bmp', imageElements);
+                        offset = endOffset;
+                        imagesFound++;
+                    } else if (data[offset] === 0x89 && data[offset + 1] === 0x50 && 
+                               data[offset + 2] === 0x4E && data[offset + 3] === 0x47) {
+                        console.log(`[Thumbcache Viewer] PNG image detected at offset ${offset}`);
+                        const endOffset = findImageEnd(data, offset, 'PNG');
+                        displayImage(data.slice(offset, endOffset), 'image/png', imageElements);
+                        offset = endOffset;
+                        imagesFound++;
+                    } else if (data[offset] === 0xFF && data[offset + 1] === 0xD8 && 
+                               data[offset + 2] === 0xFF) {
+                        console.log(`[Thumbcache Viewer] JPEG image detected at offset ${offset}`);
+                        const endOffset = findImageEnd(data, offset, 'JPEG');
+                        displayImage(data.slice(offset, endOffset), 'image/jpeg', imageElements);
                         offset = endOffset;
                         imagesFound++;
                     } else {
@@ -122,10 +136,25 @@
             requestAnimationFrame(processChunk);
         }
         
-        function findImageEnd(data, start) {
-            const fileSize = (data[start + 2] | (data[start + 3] << 8) | (data[start + 4] << 16) | (data[start + 5] << 24));
-            console.log(`[Thumbcache Viewer] BMP file size detected: ${fileSize} bytes`);
-            return start + fileSize;
+        function findImageEnd(data, start, format) {
+            if (format === 'PNG') {
+                for (let i = start + 8; i < data.length - 8; i++) {
+                    if (data[i] === 0x49 && data[i + 1] === 0x45 && data[i + 2] === 0x4E && data[i + 3] === 0x44) {
+                        return i + 8;
+                    }
+                }
+            } else if (format === 'JPEG') {
+                for (let i = start + 2; i < data.length - 2; i++) {
+                    if (data[i] === 0xFF && data[i + 1] === 0xD9) {
+                        return i + 2;
+                    }
+                }
+            } else if (format === 'BMP') {
+                if (start + 4 < data.length) {
+                    return start + (data[start + 2] | (data[start + 3] << 8) | (data[start + 4] << 16) | (data[start + 5] << 24));
+                }
+            }
+            return start + 1;
         }
         
         function displayImage(blobData, mimeType, imageElements) {
@@ -133,9 +162,6 @@
             const img = document.createElement('img');
             img.src = URL.createObjectURL(blob);
             img.classList.add('thumbnail');
-            img.onerror = function() {
-                console.error("[Thumbcache Viewer] Error displaying image:", img.src);
-            };
             imageElements.push(img);
         }
     </script>
