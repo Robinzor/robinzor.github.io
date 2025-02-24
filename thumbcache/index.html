@@ -55,65 +55,91 @@
             background: #4caf50;
             transition: width 0.2s;
         }
+        .status-message {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #4caf50;
+        }
+        .error-message {
+            color: #ff4c4c;
+        }
     </style>
 </head>
 <body>
     <h1>Thumbcache Viewer</h1>
     <input type="file" id="fileInput" accept=".db" />
     <div class="file-path" id="filePath">No file selected</div><br>
-    <div class="default-path">Directory: <br> C:\Users\%Username%\AppData\Local\Microsoft\Windows\Explorer\ <br><br> Filename: <br> thumbcache_*.db   </div>
+    <div class="default-path">
+        Directory: <br> C:\Users\%Username%\AppData\Local\Microsoft\Windows\Explorer\ <br><br>
+        Filename: <br> thumbcache_*.db
+    </div>
     <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="status-message" id="statusMessage">Waiting for file...</div>
     <div class="thumbnails" id="thumbnails"></div>
     
     <script>
         document.getElementById('fileInput').addEventListener('change', handleFile);
-        
+
+        function updateStatusMessage(message, isError = false) {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.textContent = message;
+            statusElement.className = isError ? 'status-message error-message' : 'status-message';
+            console.log(`[Thumbcache Viewer] ${message}`);
+        }
+
         function handleFile(event) {
             const file = event.target.files[0];
             if (!file) return;
-            
-            console.log(`[Thumbcache Viewer] Loaded file: ${file.name}`);
+
+            // Controleer of de bestandsnaam begint met "thumb"
+            if (!file.name.toLowerCase().startsWith("thumb")) {
+                updateStatusMessage(`Error: "${file.name}" is not a valid thumbcache file.`, true);
+                document.getElementById('filePath').textContent = "No file selected";
+                return;
+            }
+
+            updateStatusMessage(`Loaded file: ${file.name}`);
             document.getElementById('filePath').textContent = `File: ${file.name}`;
-            
+
             const reader = new FileReader();
             reader.onload = function(e) {
                 parseThumbcache(new Uint8Array(e.target.result));
             };
             reader.readAsArrayBuffer(file);
         }
-        
+
         function parseThumbcache(data) {
-            console.log("[Thumbcache Viewer] Parsing thumbcache...");
+            updateStatusMessage("Parsing thumbcache...");
             const thumbnailsContainer = document.getElementById('thumbnails');
             thumbnailsContainer.innerHTML = "";
-            
+
             let offset = 0;
             let imagesFound = 0;
             const totalSize = data.length;
             const progressBar = document.getElementById('progressBar');
             const imageElements = [];
-            
+
             function processChunk() {
                 const chunkSize = 100000; 
                 const end = Math.min(offset + chunkSize, totalSize);
-                
+
                 while (offset < end) {
                     if (data[offset] === 0x42 && data[offset + 1] === 0x4D) {
-                        console.log(`[Thumbcache Viewer] BMP image detected at offset ${offset}`);
+                        updateStatusMessage(`BMP image detected at offset ${offset}`);
                         const endOffset = findImageEnd(data, offset, 'BMP');
                         displayImage(data.slice(offset, endOffset), 'image/bmp', imageElements);
                         offset = endOffset;
                         imagesFound++;
                     } else if (data[offset] === 0x89 && data[offset + 1] === 0x50 && 
                                data[offset + 2] === 0x4E && data[offset + 3] === 0x47) {
-                        console.log(`[Thumbcache Viewer] PNG image detected at offset ${offset}`);
+                        updateStatusMessage(`PNG image detected at offset ${offset}`);
                         const endOffset = findImageEnd(data, offset, 'PNG');
                         displayImage(data.slice(offset, endOffset), 'image/png', imageElements);
                         offset = endOffset;
                         imagesFound++;
                     } else if (data[offset] === 0xFF && data[offset + 1] === 0xD8 && 
                                data[offset + 2] === 0xFF) {
-                        console.log(`[Thumbcache Viewer] JPEG image detected at offset ${offset}`);
+                        updateStatusMessage(`JPEG image detected at offset ${offset}`);
                         const endOffset = findImageEnd(data, offset, 'JPEG');
                         displayImage(data.slice(offset, endOffset), 'image/jpeg', imageElements);
                         offset = endOffset;
@@ -122,20 +148,20 @@
                         offset++;
                     }
                 }
-                
+
                 progressBar.style.width = `${(offset / totalSize) * 100}%`;
-                
+
                 if (offset < totalSize) {
                     requestAnimationFrame(processChunk);
                 } else {
                     imageElements.forEach(img => thumbnailsContainer.appendChild(img));
-                    console.log(`[Thumbcache Viewer] Extraction complete. ${imagesFound} images found.`);
+                    updateStatusMessage(`Extraction complete. ${imagesFound} images found.`);
                 }
             }
-            
+
             requestAnimationFrame(processChunk);
         }
-        
+
         function findImageEnd(data, start, format) {
             if (format === 'PNG') {
                 for (let i = start + 8; i < data.length - 8; i++) {
@@ -156,7 +182,7 @@
             }
             return start + 1;
         }
-        
+
         function displayImage(blobData, mimeType, imageElements) {
             const blob = new Blob([blobData], { type: mimeType });
             const img = document.createElement('img');
