@@ -8,7 +8,6 @@
         body {
             font-family: 'Arial', sans-serif;
             background: linear-gradient(45deg, #000, #333);
-            background-image: linear-gradient(45deg, var(--darkreader-background-000000, #000000), var(--darkreader-background-222222, #1a1c1d));
             color: #fff;
             display: flex;
             flex-direction: column;
@@ -41,6 +40,26 @@
             font-size: 14px;
             color: #ccc;
         }
+
+        #fileInput {
+            display: none;
+        }    
+
+        label {
+            padding: 10px 15px;
+            background-color: #fff;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: inline-block;
+        }
+
+        label:hover {
+            background-color: #ddd;
+        }
+
         .default-path {
             margin-top: 5px;
             font-size: 12px;
@@ -72,6 +91,7 @@
 </head>
 <body>
     <h1>Thumbcache Viewer</h1>
+    <label for="fileInput">Choose File</label>
     <input type="file" id="fileInput" accept=".db" />
     <div class="file-path" id="filePath">No file selected</div><br>
     <div class="default-path">
