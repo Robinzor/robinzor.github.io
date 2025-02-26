@@ -1,3 +1,4 @@
+
 const fileInput = document.getElementById('fileInput');
 const progressBar = document.getElementById('progress-bar');
 const progressContainer = document.getElementById('progress-container');
@@ -19,71 +20,57 @@ self.onmessage = async function (event) {
 
         try {
             const { header, filePackets } = await parsePCAP(file);
-            if (!globalHeader) globalHeader = header;
-            mergedPackets.push(...filePackets);
+            if (!globalHeader) globalHeader = header; 
+            mergedPackets = mergedPackets.concat(filePackets);
         } catch (error) {
             self.postMessage({ error: \`Error processing \${file.name}: \${error.message}\` });
         }
 
         self.postMessage({ progress: ((i + 1) / files.length) * 100 });
     }
-
     mergedPackets.sort((a, b) => a.timestamp - b.timestamp);
     const mergedPCAP = createPCAP(globalHeader, mergedPackets);
-
     self.postMessage({ done: mergedPCAP });
 };
 
-function parsePCAP(file) {
+async function parsePCAP(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-
         reader.onload = function (event) {
             try {
                 const data = new Uint8Array(event.target.result);
-                const header = data.slice(0, 24); // PCAP header
-                const filePackets = extractPackets(data);
-                resolve({ header, filePackets });
+                const header = data.slice(0, 24);
+                const packets = extractPackets(data);
+                resolve({ header, filePackets: packets });
             } catch (error) {
                 reject(error);
             }
         };
-
         reader.onerror = () => reject(new Error('File reading error'));
-
-        // Lees slechts een beperkt deel van het bestand in
-        const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB per keer
-        reader.readAsArrayBuffer(file.slice(0, CHUNK_SIZE));
+        reader.readAsArrayBuffer(file);
     });
 }
 
 function extractPackets(data) {
     let packets = [];
-    let offset = 24; // Skip PCAP global header
-    const MAX_PACKETS = 50000; // Beperk het aantal te verwerken packets per keer
+    let offset = 24; 
 
     while (offset + 16 <= data.length) {
-        const tsSec = data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24);
-        const capturedLength = data[offset + 8] | (data[offset + 9] << 8) | (data[offset + 10] << 16) | (data[offset + 11] << 24);
+        const tsSec = (data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24));
+        const capturedLength = (data[offset + 8] | (data[offset + 9] << 8) | (data[offset + 10] << 16) | (data[offset + 11] << 24));
 
         if (capturedLength <= 0 || offset + 16 + capturedLength > data.length) {
-            break;
+            break; // Stop bij corrupte of incomplete data
         }
 
         packets.push({ timestamp: tsSec, data: data.slice(offset, offset + 16 + capturedLength) });
-
-        if (packets.length >= MAX_PACKETS) {
-            console.warn("Max packets reached, breaking early");
-            break;
-        }
-
         offset += 16 + capturedLength;
     }
     return packets;
 }
 
-function createPCAP(header, packets) {
-    let mergedData = [header];
+function createPCAP(globalHeader, packets) {
+    let mergedData = [globalHeader]; 
     packets.forEach(packet => mergedData.push(packet.data));
     return new Blob(mergedData, { type: 'application/octet-stream' });
 }
