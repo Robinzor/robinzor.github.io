@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PMKID Extractor</title>
+    <title>Hashcat Command Generator</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
@@ -315,11 +315,11 @@
 </head>
 <body>
     <div class="container">
-        <h1>PMKID Extractor</h1>
+        <h1>Hashcat Command Generator</h1>
         
         <div class="content-wrapper">
             <div class="info-box">
-                <h2>Hashcat Mask Generator</h2>
+                <h2>Hashcat Command Generator</h2>
                 <div class="query-generator">
                     <div class="query-options">
                         <div class="query-option">
@@ -327,53 +327,59 @@
                             <input type="text" id="pmkid-file" value="wifi.pmkid" onchange="updateCommand()">
                         </div>
                         <div class="query-option">
-                            <input type="checkbox" id="use-wordlist" onchange="updateCommand()">
+                            <input type="checkbox" id="use-wordlist" onchange="toggleWordlist()">
                             <label for="use-wordlist">Use Wordlist</label>
                             <input type="text" id="wordlist-file" value="wordlist.txt" onchange="updateCommand()" disabled>
                         </div>
-                        <div class="query-option">
-                            <label>Length:</label>
-                            <input type="number" id="mask-length" min="1" max="20" value="8" onchange="updateMask()">
-                        </div>
-                        <div class="query-option">
-                            <input type="checkbox" id="use-custom-positions" onchange="toggleCustomPositions()">
-                            <label for="use-custom-positions">Custom Positions</label>
-                        </div>
-                        <div id="custom-positions" style="display: none; margin-left: 20px;">
+                        <div id="mask-options">
                             <div class="query-option">
-                                <label>Position:</label>
-                                <input type="number" id="custom-position" min="1" value="1" style="width: 60px;">
-                                <label>Character:</label>
-                                <input type="text" id="custom-char" maxlength="1" style="width: 60px;">
-                                <button class="upload-btn" style="padding: 5px 10px; font-size: 0.9em;" onclick="addCustomPosition()">Add</button>
+                                <label>Length:</label>
+                                <input type="number" id="mask-length" min="1" max="20" value="8" onchange="updateMask()">
                             </div>
-                            <div id="custom-positions-list" style="margin-top: 10px;"></div>
-                        </div>
-                        <div class="query-option">
-                            <input type="checkbox" id="use-digits" checked onchange="updateMask()">
-                            <label for="use-digits">Digits (?d)</label>
-                        </div>
-                        <div class="query-option">
-                            <input type="checkbox" id="use-lowercase" checked onchange="updateMask()">
-                            <label for="use-lowercase">Lowercase (?l)</label>
-                        </div>
-                        <div class="query-option">
-                            <input type="checkbox" id="use-uppercase" checked onchange="updateMask()">
-                            <label for="use-uppercase">Uppercase (?u)</label>
-                        </div>
-                        <div class="query-option">
-                            <input type="checkbox" id="use-special" onchange="updateMask()">
-                            <label for="use-special">Special (?s)</label>
+                            <div class="query-option">
+                                <input type="checkbox" id="use-custom-positions" onchange="toggleCustomPositions()">
+                                <label for="use-custom-positions">Custom Positions</label>
+                            </div>
+                            <div id="custom-positions" style="display: none; margin-left: 20px;">
+                                <div class="query-option">
+                                    <label>Position:</label>
+                                    <input type="number" id="custom-position" min="1" value="1" style="width: 60px;">
+                                    <label>Character:</label>
+                                    <input type="text" id="custom-char" maxlength="1" style="width: 60px;">
+                                    <button class="upload-btn" style="padding: 5px 10px; font-size: 0.9em;" onclick="addCustomPosition()">Add</button>
+                                </div>
+                                <div id="custom-positions-list" style="margin-top: 10px;"></div>
+                            </div>
+                            <div class="query-option">
+                                <input type="checkbox" id="use-digits" checked onchange="updateMask()">
+                                <label for="use-digits">Digits (?d)</label>
+                            </div>
+                            <div class="query-option">
+                                <input type="checkbox" id="use-lowercase" onchange="updateMask()">
+                                <label for="use-lowercase">Lowercase (?l)</label>
+                            </div>
+                            <div class="query-option">
+                                <input type="checkbox" id="use-uppercase" onchange="updateMask()">
+                                <label for="use-uppercase">Uppercase (?u)</label>
+                            </div>
+                            <div class="query-option">
+                                <input type="checkbox" id="use-special" onchange="updateMask()">
+                                <label for="use-special">Special (?s)</label>
+                            </div>
                         </div>
                     </div>
                     <div class="query-output">
-                        <h4>Generated Mask:</h4>
-                        <pre id="mask-output"></pre>
-                        <div id="keyspace-info" style="margin: 10px 0; padding: 10px; border-radius: 5px; background: rgba(0,0,0,0.2);"></div>
+                        <div id="mask-section">
+                            <h4>Generated Mask:</h4>
+                            <pre id="mask-output"></pre>
+                            <div id="keyspace-info" style="margin: 10px 0; padding: 10px; border-radius: 5px; background: rgba(0,0,0,0.2);"></div>
+                        </div>
                         <h4>Hashcat Command:</h4>
                         <pre id="command-output"></pre>
-                        <button class="upload-btn" onclick="copyMask()">Copy Mask</button>
-                        <button class="upload-btn" onclick="copyCommand()">Copy Command</button>
+                        <div id="button-section">
+                            <button class="upload-btn" onclick="copyMask()">Copy Mask</button>
+                            <button class="upload-btn" onclick="copyCommand()">Copy Command</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -473,12 +479,46 @@
             return num.toString();
         }
 
+        function formatTime(seconds) {
+            if (seconds >= 31536000) { // 1 year
+                return (seconds / 31536000).toFixed(1) + ' years';
+            }
+            if (seconds >= 2592000) { // 1 month
+                return (seconds / 2592000).toFixed(1) + ' months';
+            }
+            if (seconds >= 86400) { // 1 day
+                return (seconds / 86400).toFixed(1) + ' days';
+            }
+            if (seconds >= 3600) { // 1 hour
+                return (seconds / 3600).toFixed(1) + ' hours';
+            }
+            if (seconds >= 60) { // 1 minute
+                return (seconds / 60).toFixed(1) + ' minutes';
+            }
+            return seconds.toFixed(1) + ' seconds';
+        }
+
+        function calculateTime(keyspace) {
+            const hashRate = 1200000; // RTX 3080: 1.2 MH/s
+            const seconds = keyspace / hashRate;
+            return formatTime(seconds);
+        }
+
         function updateMask() {
+            const useWordlist = document.getElementById('use-wordlist').checked;
             const length = parseInt(document.getElementById('mask-length').value) || 8;
             const useDigits = document.getElementById('use-digits').checked;
             const useLowercase = document.getElementById('use-lowercase').checked;
             const useUppercase = document.getElementById('use-uppercase').checked;
             const useSpecial = document.getElementById('use-special').checked;
+
+            // If using wordlist, skip mask calculation
+            if (useWordlist) {
+                document.getElementById('mask-output').textContent = 'Using wordlist - no mask needed';
+                document.getElementById('keyspace-info').innerHTML = '';
+                updateCommand();
+                return;
+            }
 
             let mask = '';
             if (useDigits) mask += '?d';
@@ -510,7 +550,8 @@
             if (keyspace > 1e12) {
                 keyspaceInfo.innerHTML = `<span style="color: #ff4444;">⚠️ Warning: Keyspace too large (${formatNumber(keyspace)} combinations). This will cause integer overflow in hashcat.</span>`;
             } else {
-                keyspaceInfo.innerHTML = `Keyspace: ${formatNumber(keyspace)} combinations`;
+                const timeEstimate = calculateTime(keyspace);
+                keyspaceInfo.innerHTML = `Keyspace: ${formatNumber(keyspace)} combinations<br>Estimated time on RTX 3080: ${timeEstimate}`;
             }
 
             updateCommand();
@@ -522,15 +563,10 @@
             const wordlistFile = document.getElementById('wordlist-file').value;
             const mask = document.getElementById('mask-output').textContent;
 
-            if (mask === 'Select at least one character type') {
-                document.getElementById('command-output').textContent = 'Select at least one character type';
-                return;
-            }
-
             let command = `hashcat -m 22000 ${pmkidFile}`;
             if (useWordlist) {
                 command += ` ${wordlistFile}`;
-            } else {
+            } else if (mask && mask !== 'Select at least one character type' && mask !== 'Using wordlist - no mask needed') {
                 command += ` -a 3 ${mask}`;
             }
 
@@ -553,11 +589,33 @@
             }
         }
 
-        // Add event listener for wordlist checkbox
-        document.getElementById('use-wordlist').addEventListener('change', function() {
-            document.getElementById('wordlist-file').disabled = !this.checked;
-            updateCommand();
-        });
+        function toggleWordlist() {
+            const useWordlist = document.getElementById('use-wordlist').checked;
+            const wordlistInput = document.getElementById('wordlist-file');
+            const maskOptions = document.getElementById('mask-options');
+            const maskSection = document.getElementById('mask-section');
+            const buttonSection = document.getElementById('button-section');
+            
+            wordlistInput.disabled = !useWordlist;
+            maskOptions.style.display = useWordlist ? 'none' : 'block';
+            maskSection.style.display = useWordlist ? 'none' : 'block';
+            
+            // Update button section
+            buttonSection.innerHTML = useWordlist ? 
+                '<button class="upload-btn" onclick="copyCommand()">Copy Command</button>' :
+                '<button class="upload-btn" onclick="copyMask()">Copy Mask</button>' +
+                '<button class="upload-btn" onclick="copyCommand()">Copy Command</button>';
+            
+            if (useWordlist) {
+                // Clear custom positions when switching to wordlist
+                customPositions.clear();
+                document.getElementById('custom-positions-list').innerHTML = '';
+                document.getElementById('use-custom-positions').checked = false;
+                document.getElementById('custom-positions').style.display = 'none';
+            }
+            
+            updateMask();
+        }
 
         // Initialize on page load
         updateMask();
