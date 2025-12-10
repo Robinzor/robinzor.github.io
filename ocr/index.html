@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Browser OCR (No Backend)</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <style>
+    :root {
+      --accent: #4caf50;
+      --bg: linear-gradient(45deg, #000, #333);
+      --card: rgba(255, 255, 255, 0.04);
+      --border: rgba(255, 255, 255, 0.22);
+      --muted: #d1d5db;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Arial", sans-serif;
+      background: var(--bg);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+    }
+    .app {
+      width: min(1000px, 100%);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: 0 14px 48px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(6px);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(24px, 2vw + 12px, 32px);
+      letter-spacing: -0.02em;
+    }
+    p {
+      margin: 0 0 20px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+    .card {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .drop {
+      border-style: dashed;
+      text-align: center;
+      padding: 32px 16px;
+      cursor: pointer;
+      transition: border-color 150ms ease, background 150ms ease;
+    }
+    .drop.dragover {
+      border-color: var(--accent);
+      background: rgba(76, 175, 80, 0.08);
+    }
+    input[type="file"] {
+      display: none;
+    }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, opacity 150ms ease, background 150ms ease;
+    }
+    button:hover { background: #45a049; }
+    button:active { transform: translateY(1px); }
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .preview {
+      position: relative;
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #0b1224;
+      min-height: 240px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border);
+    }
+    canvas {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+    .status {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .output {
+      width: 100%;
+      min-height: 240px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(0, 0, 0, 0.35);
+      color: #e5e7eb;
+      padding: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      white-space: pre-wrap;
+      overflow: auto;
+    }
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    .badge {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      background: rgba(76, 175, 80, 0.2);
+      color: #e8f5e9;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      border: 1px solid rgba(76, 175, 80, 0.35);
+    }
+    a { color: #a5f3a5; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="badge">Client-side OCR · No uploads</div>
+    <h1>Paste or Drop an Image to OCR</h1>
+    <p>Everything runs in your browser using JavaScript only. Paste a screenshot with <kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + <kbd>V</kbd> or choose a local JPG/PNG file. Nothing leaves this page.</p>
+
+    <div class="grid">
+      <div class="card drop" id="dropArea">
+        <input type="file" id="fileInput" accept="image/png,image/jpeg" />
+        <p><strong>Click to pick a file</strong> or drag an image here.</p>
+        <p class="hint">Paste also works anywhere on the page.</p>
+        <button id="pickButton">Select Image</button>
+      </div>
+
+      <div class="card">
+        <div class="preview">
+          <canvas id="previewCanvas"></canvas>
+          <div id="placeholder" style="position:absolute;color:var(--muted);text-align:center;padding:12px;">Preview will appear here</div>
+        </div>
+        <div class="status" id="status">Idle</div>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <strong>Recognized Text</strong>
+          <button id="copyBtn" disabled>Copy text</button>
+        </div>
+        <div class="output" id="output">Waiting for an image…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tesseract.js local copy -->
+  <script src="./tesseract.min.js"></script>
+  <script>
+    const dropArea = document.getElementById('dropArea');
+    const fileInput = document.getElementById('fileInput');
+    const pickButton = document.getElementById('pickButton');
+    const canvas = document.getElementById('previewCanvas');
+    const ctx = canvas.getContext('2d');
+    const placeholder = document.getElementById('placeholder');
+    const statusEl = document.getElementById('status');
+    const outputEl = document.getElementById('output');
+    const copyBtn = document.getElementById('copyBtn');
+
+    let currentWorker = null;
+    let isProcessing = false;
+
+    pickButton.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) handleFile(file);
+      fileInput.value = '';
+    });
+
+    dropArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropArea.classList.add('dragover');
+    });
+    dropArea.addEventListener('dragleave', () => dropArea.classList.remove('dragover'));
+    dropArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropArea.classList.remove('dragover');
+      const file = e.dataTransfer.files?.[0];
+      if (file) handleFile(file);
+    });
+
+    document.addEventListener('paste', (e) => {
+      const item = Array.from(e.clipboardData.items || []).find((i) => i.type.startsWith('image/'));
+      if (item) {
+        const file = item.getAsFile();
+        if (file) handleFile(file);
+      }
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      const text = outputEl.innerText.trim();
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatus('Copied to clipboard');
+      } catch {
+        setStatus('Copy failed');
+      }
+    });
+
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+    }
+
+    function resetWorker() {
+      if (currentWorker) {
+        currentWorker.terminate();
+        currentWorker = null;
+      }
+    }
+
+    function handleFile(file) {
+      if (!file.type.startsWith('image/')) {
+        setStatus('Please provide a JPG or PNG image');
+        return;
+      }
+      if (isProcessing) {
+        setStatus('Canceling previous task…');
+        resetWorker();
+      }
+      const url = URL.createObjectURL(file);
+      loadImage(url);
+    }
+
+    function loadImage(src) {
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        ctx.drawImage(img, 0, 0);
+        placeholder.style.display = 'none';
+        runOcr(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => setStatus('Failed to load image');
+      img.src = src;
+    }
+
+    async function runOcr(dataUrl) {
+      isProcessing = true;
+      copyBtn.disabled = true;
+      outputEl.textContent = 'Processing…';
+      setStatus('Initializing OCR…');
+      resetWorker();
+
+      currentWorker = await Tesseract.createWorker('eng', 1, {
+        logger: ({ status, progress }) => {
+          setStatus(`${status} ${(progress * 100).toFixed(0)}%`);
+        },
+      });
+
+      try {
+        const { data } = await currentWorker.recognize(dataUrl);
+        outputEl.textContent = data.text.trim() || 'No text detected.';
+        copyBtn.disabled = !data.text.trim();
+        setStatus('Done');
+      } catch (err) {
+        console.error(err);
+        outputEl.textContent = 'OCR failed. Open the console for details.';
+        setStatus('Error during OCR');
+      } finally {
+        isProcessing = false;
+        resetWorker();
+      }
+    }
+  </script>
+</body>
+</html>
+
