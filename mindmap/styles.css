@@ -139,6 +139,11 @@ body.dark .control-text { fill: var(--text); }
 /* Dark canvas gradient variables */
 body.dark { --canvasTop: #0f1720; --canvasBottom: #071018 }
 
+/* Persistent controls: when a node is tapped, keep controls visible but fade them when hovered away */
+.node-controls{ transition: opacity .18s ease, visibility .12s .04s; opacity:1 }
+.node-controls.persistent{ opacity:1 }
+.node-controls.persistent.faded{ opacity:0.36 }
+
 /* Suggestions dropdown for search */
 .search-wrap{ position:relative; display:inline-block }
 .suggestions{ position:absolute; top:100%; left:0; right:0; margin-top:6px; background:var(--node); color:var(--text); border:1px solid var(--nodeStroke); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.16); max-height:320px; overflow:auto; display:none; z-index:1200 }
