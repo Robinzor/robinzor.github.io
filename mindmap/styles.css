@@ -153,3 +153,34 @@ body.dark { --canvasTop: #0f1720; --canvasBottom: #071018 }
 .save-status{ margin-left:8px; font-size:13px; padding:6px 8px; border-radius:8px; color:var(--text); opacity:0; transition:opacity .12s, transform .12s, background .12s; pointer-events:none }
 .save-status.visible{ opacity:1; transform:translateY(-1px); background: rgba(0,0,0,0.04); border:1px solid rgba(0,0,0,0.04) }
 body.dark .save-status.visible{ background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.04) }
+
+/* Mobile: allow the toolbar to scroll horizontally (left-right) for narrow viewports
+	 so controls stay accessible without wrapping. This keeps desktop layout unchanged. */
+@media (max-width: 720px) {
+	.toolbar{
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		white-space: nowrap;
+		flex-wrap: nowrap;
+		gap: 10px;
+		/* Allow horizontal panning on touch so drag left/right scrolls the toolbar */
+		touch-action: pan-x;
+		-ms-touch-action: pan-x;
+	}
+	/* Ensure each direct child stays its intrinsic size and participates in horizontal scrolling */
+	.toolbar > *{
+		flex: 0 0 auto;
+		display: inline-flex;
+		align-items: center;
+	}
+	/* Make the search box and suggestion area a reasonable minimum width on mobile */
+	.search-wrap{ min-width: 160px; }
+	.search-wrap input{ min-width: 120px; }
+	/* Toolbar-right should participate in scrolling rather than forcing layout */
+	.toolbar-right{ margin-left: 8px; }
+	/* Slightly reduce toolbar padding on small screens */
+	.toolbar{ padding:8px 10px; height:48px }
+	/* Hide default scrollbar visually but keep it usable (platform dependent) */
+	.toolbar::-webkit-scrollbar{ height: 8px; }
+	.toolbar::-webkit-scrollbar-thumb{ background: rgba(0,0,0,0.12); border-radius: 6px }
+}
