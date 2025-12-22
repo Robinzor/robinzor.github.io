@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Mindmap</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="toolbar">
+    <button id="addNode">Add node</button>
+    <div class="search-wrap">
+      <input id="search" placeholder="Search nodes..." autocomplete="off" />
+      <div id="suggestions" class="suggestions" role="listbox" aria-label="Search suggestions"></div>
+    </div>
+    <label for="nodeStyle" class="visually-hidden">Node style</label>
+    <select id="nodeStyle" title="Node style">
+      <option value="circle">Circle</option>
+      <option value="box">Box</option>
+    </select>
+    <label for="edgeStyle" class="visually-hidden">Edge style</label>
+    <select id="edgeStyle" title="Edge style">
+      <option value="straight">Straight</option>
+      <option value="elbow">Elbow</option>
+      <option value="dashed">Dashed</option>
+    </select>
+    <label for="nodePalette" class="visually-hidden">Palette</label>
+    <select id="nodePalette" title="Node palette">
+      <option value="default">Default</option>
+      <option value="pastel">Pastel</option>
+      <option value="monochrome">Monochrome</option>
+      <option value="vibrant">Vibrant</option>
+    </select>
+    <button id="zoomIn">+</button>
+    <button id="zoomOut">−</button>
+    <div class="toolbar-right">
+      <button id="export">Export JSON</button>
+      <input id="importFile" type="file" style="display:none" accept=".json"/>
+      <button id="importBtn">Import JSON</button>
+      <button id="save">Save</button>
+      <span id="saveStatus" class="save-status" aria-live="polite"></span>
+      <label style="display:inline-flex;align-items:center;gap:6px; margin-left:8px">
+        <input id="autoSaveToggle" type="checkbox" />
+        <span style="font-size:13px">Autosave</span>
+      </label>
+      <button id="clearStorage" title="Clear saved data">Clear storage</button>
+    </div>
+  </div>
+  <div id="canvasWrap">
+    <svg id="svg" tabindex="0"></svg>
+  </div>
+  <div id="editor" class="editor" contenteditable="true" aria-hidden="true"></div>
+  <script src="app.min.js"></script>
+</body>
+</html>

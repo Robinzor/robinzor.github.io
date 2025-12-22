@@ -1,0 +1,155 @@
+:root{--bg:#f7f8fb;--node:#fff;--nodeStroke:#2b6cb0;--highlight:#ffea8a}
+.html,body{height:100%;margin:0;font-family:Segoe UI,Roboto,Arial}
+#toolbar-height{display:none}
+.toolbar{position:fixed;top:0;left:0;right:0;height:52px;padding:10px 12px;background:var(--toolbar, #fff);border-bottom:1px solid rgba(0,0,0,0.08);display:flex;gap:8px;align-items:center;z-index:1000}
+/* right-aligned group inside toolbar */
+.toolbar-right{ margin-left:auto; display:flex; gap:8px; align-items:center }
+#canvasWrap{height:calc(100vh - 52px);margin-top:52px;background:linear-gradient(180deg,var(--canvasTop,#fbfdff),var(--canvasBottom,#eef3ff))}
+#svg{width:100%;height:100%;cursor:grab;touch-action:none;background:transparent}
+/* Prevent the toolbar and canvas wrapper from triggering browser pinch-zoom
+	on touch devices so our JS pinch-zoom/pan handlers control zooming
+	and the header (toolbar) remains visually fixed. */
+.toolbar, #canvasWrap { touch-action: none; -ms-touch-action: none; }
+.node-circle{fill:var(--node);stroke:var(--nodeStroke);stroke-width:1.6;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.08))}
+.node-rect{ fill:var(--node); stroke:var(--nodeStroke); stroke-width:1.4 }
+.node-text{pointer-events:none;font-size:14px;fill:#111}
+.edge{stroke:#888;stroke-width:1.2;fill:none}
+.highlight{stroke:#e11;font-weight:700}
+.match{filter:drop-shadow(0 0 6px rgba(255,200,0,0.9))}
+
+/* Edge styles */
+.edge.curved{ stroke-linecap:round }
+.edge.elbow{ stroke-linejoin:round }
+.edge.dashed{ stroke-dasharray:6 6 }
+
+/* Node palettes - use CSS variables so dark mode can override safely */
+body.palette-default { --palette-node: var(--node); --palette-stroke: var(--nodeStroke); --palette-text: var(--text, #111); }
+body.palette-pastel { --palette-node: #ffe8f0; --palette-stroke: #ec4899; --palette-text: #6b2140; }
+body.palette-monochrome { --palette-node: #f3f4f6; --palette-stroke: #374151; --palette-text: #111827; }
+body.palette-vibrant { --palette-node: #fffbeb; --palette-stroke: #f59e0b; --palette-text: #92400e; }
+
+/* Dark-mode palette tweaks so palettes remain readable on dark background (when both classes are on body)
+   use combined selector so the override applies when body has both .dark and .palette-* */
+body.dark.palette-default { --palette-node: var(--node); --palette-stroke: var(--nodeStroke); --palette-text: var(--text, #e6eef8); }
+body.dark.palette-pastel { --palette-node: #2b2c31; --palette-stroke: #9b6b82; --palette-text: #d6c7cf; }
+body.dark.palette-monochrome { --palette-node: #111827; --palette-stroke: #9aa0a6; --palette-text: #e6eef8; }
+body.dark.palette-vibrant { --palette-node: #2b2718; --palette-stroke: #b45309; --palette-text: #ffdba4; }
+
+/* Dark mode variables applied when body has .dark */
+body.dark {
+	--bg: #081016;             /* page background (very dark) */
+	--node: #233238;           /* node fill - noticeably lighter than background */
+	--nodeStroke: rgba(255,255,255,0.12); /* slightly stronger node border */
+	--edge: rgba(255,255,255,0.28); /* stronger, more visible lines */
+	--text: #e6eef8;          /* light text for contrast */
+	--toolbar: #0b1418;       /* toolbar background */
+	--editorBg: #24343a;      /* editor background, match node (lighter than page) */
+}
+
+/* Highlight color used for selected node outlines / glow */
+:root{ --nodeHighlight: rgba(59,130,246,0.95) }
+body.dark { --nodeHighlight: rgba(99,179,237,0.95) }
+
+/* Selected node styles: brighter outline and subtle elevation/glow */
+.node-group.selected .node-circle{
+	stroke: var(--nodeHighlight);
+	stroke-width: 2.4;
+}
+.node-group.selected .node-circle{
+	filter: drop-shadow(0 8px 18px rgba(59,130,246,0.12));
+}
+
+.node-group.selected .node-rect{
+	stroke: var(--nodeHighlight);
+	stroke-width: 2.4;
+	filter: drop-shadow(0 8px 18px rgba(59,130,246,0.12));
+}
+
+/* Slightly stronger outline on hover as well */
+.node-group:hover .node-circle{ stroke-width:1.6 }
+
+body { background: var(--bg); color: var(--text, #111); }
+.toolbar{ background: var(--toolbar, #fff); color: var(--text, var(--text)); }
+.node-text{ fill: var(--text, #111); }
+
+/* Ensure inputs/buttons use themed colors */
+input, button { background: transparent; color: inherit; border: 1px solid rgba(0,0,0,0.08); padding:6px 8px; border-radius:6px; transition: background .12s, border-color .12s, transform .08s }
+input::placeholder{ color: rgba(0,0,0,0.4) }
+body.dark input, body.dark button { border-color: rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); }
+body.dark input::placeholder{ color: rgba(230,238,248,0.7) }
+
+/* Toolbar button styles: use the same surface as nodes so buttons feel like objects */
+.toolbar button{ background: var(--node); color: var(--text); border-radius:8px; padding:6px 10px; border:1px solid var(--nodeStroke); box-shadow: 0 4px 10px rgba(0,0,0,0.06); transition: background .12s, transform .08s, box-shadow .12s }
+.toolbar button:hover{ transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,0,0,0.08) }
+body.dark .toolbar button{ background: var(--node); border-color: var(--nodeStroke); box-shadow: 0 4px 18px rgba(0,0,0,0.12) }
+body.dark .toolbar button:hover{ box-shadow: 0 10px 28px rgba(0,0,0,0.18) }
+
+/* Inline editor */
+.editor{ position: absolute; z-index: 9999; min-width: 140px; max-width: 320px; padding:6px 10px; border-radius:6px; background:var(--editorBg, var(--node)); color:var(--text,#111); box-shadow:none; border:1px solid rgba(0,0,0,0.06); display:none; font-size:14px }
+.editor[aria-hidden="false"]{ display:block }
+.editor:focus{ outline:2px solid rgba(59,130,246,0.12); }
+
+/* Slight UI improvements */
+.node-circle{cursor:grab}
+.toolbar button{cursor:pointer}
+
+/* Dark-mode overrides for visuals: reduce white areas, keep lines & text visible */
+body.dark .node-circle{ filter: none }
+body.dark .toolbar{ color: var(--text); background: var(--toolbar); border-bottom:1px solid rgba(255,255,255,0.04) }
+body.dark .editor{ background: var(--editorBg); color: var(--text); border-color: rgba(255,255,255,0.04) }
+body.dark .node-text{ fill: var(--text) }
+body.dark .edge{ stroke: var(--edge) }
+
+/* Apply palette fills/strokes and text color after dark-mode rules so palettes take precedence */
+body.palette-default .node-circle, body.palette-default .node-rect,
+body.palette-pastel .node-circle, body.palette-pastel .node-rect,
+body.palette-monochrome .node-circle, body.palette-monochrome .node-rect,
+body.palette-vibrant .node-circle, body.palette-vibrant .node-rect {
+	fill: var(--palette-node);
+	stroke: var(--palette-stroke);
+}
+body.palette-default .node-text, body.palette-pastel .node-text, body.palette-monochrome .node-text, body.palette-vibrant .node-text {
+	fill: var(--palette-text) !important;
+}
+
+/* Custom on-screen cursor to improve visibility over varied backgrounds */
+/* small overlay cursor that stays visible during drag */
+#customCursor{ position:fixed; width:20px; height:20px; border-radius:50%; pointer-events:none; z-index:2000; transform:translate(-9999px,-9999px) scale(1); transition:transform .06s linear, opacity .12s linear; opacity:0; display:block }
+#customCursor.visible{ opacity:1 }
+#customCursor .ring{ box-sizing:border-box; width:100%; height:100%; border:2px solid var(--cursorBorder, rgba(0,0,0,0.95)); border-radius:50%; background: rgba(0,0,0,0.06); box-shadow: 0 6px 18px rgba(0,0,0,0.18); transition: transform .06s linear, border-color .08s linear, background .08s linear }
+/* stronger pressed/active state so cursor remains visible while dragging */
+#customCursor.active .ring{ transform: scale(0.92); border-width:3px; box-shadow: 0 8px 26px rgba(0,0,0,0.24); background: rgba(0,0,0,0.10); }
+
+/* Cursor color variables - invert for dark mode */
+:root{ --cursorBorder: rgba(0,0,0,0.9) }
+body.dark { --cursorBorder: rgba(255,255,255,0.92) }
+body.dark #customCursor .ring { background: rgba(255,255,255,0.04); box-shadow: 0 6px 18px rgba(0,0,0,0.35); }
+
+/* Node hover controls (+ / -) */
+.control-btn { cursor: pointer; }
+.control-circle { r: 10; }
+.control-text { font-size:12px; text-anchor:middle; dominant-baseline:central; pointer-events:none }
+
+/* Colors for controls (adjust for dark & light modes) */
+.control-bg { fill: var(--node); stroke: var(--nodeStroke); }
+body.dark .control-bg { fill: var(--node); stroke: var(--nodeStroke); }
+body.dark .control-text { fill: var(--text); }
+.control-text { fill: var(--text, #111) }
+
+/* Dark canvas gradient variables */
+body.dark { --canvasTop: #0f1720; --canvasBottom: #071018 }
+
+/* Suggestions dropdown for search */
+.search-wrap{ position:relative; display:inline-block }
+.suggestions{ position:absolute; top:100%; left:0; right:0; margin-top:6px; background:var(--node); color:var(--text); border:1px solid var(--nodeStroke); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.16); max-height:320px; overflow:auto; display:none; z-index:1200 }
+.suggestions.visible{ display:block }
+.suggestion{ padding:8px 10px; cursor:pointer; font-size:13px; border-bottom:1px solid rgba(0,0,0,0.03) }
+.suggestion:last-child{ border-bottom: none }
+.suggestion:hover, .suggestion.active{ background: rgba(59,130,246,0.08) }
+.suggestion .label{ display:inline-block }
+.suggestion .meta{ float:right; opacity:0.6; font-size:12px }
+
+/* Onscreen save status in toolbar */
+.save-status{ margin-left:8px; font-size:13px; padding:6px 8px; border-radius:8px; color:var(--text); opacity:0; transition:opacity .12s, transform .12s, background .12s; pointer-events:none }
+.save-status.visible{ opacity:1; transform:translateY(-1px); background: rgba(0,0,0,0.04); border:1px solid rgba(0,0,0,0.04) }
+body.dark .save-status.visible{ background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.04) }
