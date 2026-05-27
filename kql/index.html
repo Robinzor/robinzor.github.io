@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KQL Regex Creator</title>
+<style>
+:root {
+  --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+  --border: #30363d; --accent: #388bfd; --accent-dim: #1a3a6e;
+  --text: #c9d1d9; --text-bright: #f0f6fc; --text-muted: #8b949e;
+  --success: #3fb950; --error: #f85149; --warn: #d29922;
+  --kw: #ff7b72; --fn: #ffa657; --str: #a5d6a7;
+  --blue: #79c0ff; --purple: #d2a8ff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; min-height: 100vh; }
+
+/* Header */
+header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 14px; }
+header h1 { font-size: 18px; font-weight: 700; color: var(--text-bright); display: flex; align-items: center; gap: 8px; }
+.badge { background: var(--accent-dim); color: var(--blue); padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+.badge.green { background: #1a3a2a; color: var(--success); }
+header .sub { color: var(--text-muted); font-size: 12px; margin-left: auto; }
+
+/* Layout */
+.container { max-width: 1440px; margin: 0 auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+/* Card */
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.card-head { background: var(--bg3); border-bottom: 1px solid var(--border); padding: 9px 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.card-title { font-size: 13px; font-weight: 600; color: var(--text-bright); display: flex; align-items: center; gap: 6px; }
+.card-body { padding: 14px; }
+
+/* Regex input row */
+.regex-row { display: flex; align-items: center; gap: 8px; }
+.regex-wrap { flex: 1; display: flex; align-items: center; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; transition: border-color .15s; }
+.regex-wrap.valid { border-color: var(--success); }
+.regex-wrap.invalid { border-color: var(--error); }
+.delim { padding: 8px 10px; color: var(--text-muted); font: 18px/1 'Cascadia Code','Consolas',monospace; background: var(--bg3); user-select: none; }
+.delim:first-child { border-right: 1px solid var(--border); }
+.delim:last-child { border-left: 1px solid var(--border); }
+#regexInput { flex: 1; padding: 8px 10px; background: transparent; border: none; outline: none; color: var(--blue); font: 14px/1.4 'Cascadia Code','Consolas',monospace; min-width: 0; }
+#regexInput::placeholder { color: var(--text-muted); font-style: italic; }
+
+/* Flags */
+.flags { display: flex; gap: 4px; }
+.flag-btn { width: 30px; height: 30px; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font: 600 13px 'Cascadia Code','Consolas',monospace; display: flex; align-items: center; justify-content: center; transition: all .15s; user-select: none; }
+.flag-btn:hover { border-color: var(--accent); color: var(--text); }
+.flag-btn.on { background: var(--accent-dim); border-color: var(--accent); color: var(--blue); }
+
+/* Status bar */
+.status-bar { background: var(--bg3); border-top: 1px solid var(--border); padding: 5px 14px; display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+.dot.ok { background: var(--success); }
+.dot.err { background: var(--error); }
+#statusMsg { color: var(--text-muted); }
+#statusMsg.ok { color: var(--success); }
+#statusMsg.err { color: var(--error); }
+.re2-warns { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.warn-pill { background: rgba(210,153,34,.12); border: 1px solid rgba(210,153,34,.3); color: var(--warn); padding: 1px 7px; border-radius: 10px; font-size: 10px; }
+
+/* Two-col */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* Tabs */
+.tabs { display: flex; background: var(--bg3); border-bottom: 1px solid var(--border); }
+.tab { padding: 8px 13px; font-size: 12px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; user-select: none; transition: all .15s; white-space: nowrap; }
+.tab:hover { color: var(--text); }
+.tab.on { color: var(--blue); border-bottom-color: var(--accent); }
+.tab-pane { display: none; padding: 14px; }
+.tab-pane.on { display: block; }
+
+/* Builder */
+.b-section { margin-bottom: 13px; }
+.b-section:last-child { margin-bottom: 0; }
+.b-label { font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: var(--text-muted); font-weight: 700; margin-bottom: 6px; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 4px; }
+.btn { padding: 3px 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); cursor: pointer; font: 12px/1.5 'Cascadia Code','Consolas',monospace; transition: all .15s; user-select: none; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); color: var(--blue); background: var(--bg); }
+.btn .d { font-size: 10px; color: var(--text-muted); font-family: inherit; }
+.btn.hi { border-color: rgba(56,139,253,.4); color: var(--blue); }
+.warn-box { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: rgba(210,153,34,.1); border: 1px solid rgba(210,153,34,.3); border-radius: 4px; font-size: 11px; color: var(--warn); margin-top: 6px; }
+
+/* Inputs */
+input[type=text], select, textarea { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; color: var(--text); padding: 6px 9px; font-size: 13px; font-family: inherit; outline: none; transition: border-color .15s; }
+input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accent); }
+select { cursor: pointer; }
+select option { background: var(--bg2); }
+
+/* KQL output */
+.kql-snippets { display: flex; flex-direction: column; gap: 10px; }
+.kql-label { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; }
+.kql-out-wrap { position: relative; }
+.kql-out { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 9px 44px 9px 10px; font: 12px/1.6 'Cascadia Code','Consolas',monospace; white-space: pre-wrap; word-break: break-all; color: var(--text); min-height: 36px; }
+.kql-out .kw { color: var(--kw); }
+.kql-out .fn { color: var(--fn); }
+.kql-out .str { color: var(--str); }
+.kql-out .fld { color: var(--blue); }
+.kql-out .op { color: var(--purple); }
+.copy-btn { position: absolute; top: 5px; right: 5px; padding: 2px 7px; background: var(--bg3); border: 1px solid var(--border); border-radius: 3px; color: var(--text-muted); cursor: pointer; font-size: 11px; transition: all .15s; }
+.copy-btn:hover { border-color: var(--accent); color: var(--blue); }
+.copy-btn.ok { border-color: var(--success); color: var(--success); }
+
+/* Pattern library */
+.lib-cat { margin-bottom: 12px; }
+.lib-cat:last-child { margin-bottom: 0; }
+.lib-cat-title { font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: var(--text-muted); font-weight: 700; margin-bottom: 6px; }
+.lib-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+.pat-tag { display: flex; align-items: center; gap: 5px; padding: 4px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 20px; cursor: pointer; font-size: 12px; color: var(--text); transition: all .15s; user-select: none; }
+.pat-tag:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--text-bright); }
+
+/* Test area */
+#testInput { width: 100%; min-height: 110px; resize: vertical; font: 13px/1.6 'Cascadia Code','Consolas',monospace; }
+.stats-bar { display: flex; align-items: center; gap: 16px; padding: 6px 10px; background: var(--bg3); border-radius: 4px; font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+.stats-bar strong { color: var(--text-bright); }
+.hl-area { min-height: 60px; max-height: 280px; overflow-y: auto; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; font: 13px/1.7 'Cascadia Code','Consolas',monospace; white-space: pre-wrap; word-break: break-word; margin-top: 8px; }
+.hl-area mark.m0 { background: rgba(56,139,253,.22); border: 1px solid rgba(56,139,253,.5); border-radius: 2px; color: #93c5fd; padding: 0 1px; }
+.hl-area mark.m1 { background: rgba(168,85,247,.22); border: 1px solid rgba(168,85,247,.5); border-radius: 2px; color: #c084fc; padding: 0 1px; }
+.hl-area mark.m2 { background: rgba(34,197,94,.22); border: 1px solid rgba(34,197,94,.5); border-radius: 2px; color: #86efac; padding: 0 1px; }
+.match-list { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; max-height: 180px; overflow-y: auto; }
+.match-item { display: flex; align-items: center; gap: 8px; padding: 3px 8px; background: var(--bg3); border-radius: 3px; font-size: 12px; }
+.match-num { color: var(--text-muted); min-width: 24px; font-variant-numeric: tabular-nums; }
+.match-val { font-family: 'Cascadia Code','Consolas',monospace; color: #93c5fd; background: rgba(56,139,253,.1); padding: 1px 6px; border-radius: 3px; border: 1px solid rgba(56,139,253,.2); max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.match-pos { color: var(--text-muted); font-size: 11px; }
+.match-grp { color: #c084fc; font-size: 11px; }
+
+/* Explanation */
+.exp-area { padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; font-size: 12px; line-height: 2; display: flex; flex-direction: column; gap: 2px; }
+.exp-tok { display: flex; align-items: baseline; gap: 6px; }
+.exp-tok code { font: 12px 'Cascadia Code','Consolas',monospace; padding: 1px 6px; border-radius: 3px; }
+.exp-tok .exp-desc { color: var(--text-muted); }
+.t-anchor code { background: rgba(255,123,114,.15); color: #ff7b72; }
+.t-class code { background: rgba(121,192,255,.15); color: var(--blue); }
+.t-quant code { background: rgba(210,168,255,.15); color: var(--purple); }
+.t-group code { background: rgba(255,166,87,.15); color: var(--fn); }
+.t-literal code { background: rgba(163,199,167,.15); color: var(--str); }
+.t-alt code { background: rgba(255,215,0,.12); color: #ffd700; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+@media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔍 KQL Regex Creator</h1>
+  <span class="badge">RE2</span>
+  <span class="badge green">KQL</span>
+  <span class="sub">Kusto Query Language · Microsoft Sentinel / Azure Monitor</span>
+</header>
+
+<div class="container">
+
+  <!-- ── Regex Input ── -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">📝 Regex Pattern</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:11px;color:var(--text-muted)">Flags:</span>
+        <div class="flags" id="flagWrap">
+          <button class="flag-btn" data-flag="i" title="Case-insensitive (adds (?i) in KQL)">i</button>
+          <button class="flag-btn" data-flag="m" title="Multiline: ^ and $ per line">m</button>
+          <button class="flag-btn" data-flag="s" title="Dotall: . also matches newlines">s</button>
+        </div>
+        <button class="btn" onclick="copyRegex()" id="copyRegexBtn" style="font-family:inherit;font-size:11px;">Copy regex</button>
+        <button class="btn" onclick="clearAll()" style="font-family:inherit;font-size:11px;color:var(--error);border-color:rgba(248,81,73,.3)">Clear</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:12px 14px;">
+      <div class="regex-row">
+        <div class="regex-wrap" id="regexWrap">
+          <span class="delim">/</span>
+          <input id="regexInput" type="text" placeholder="Write or build your regex pattern…" autocomplete="off" spellcheck="false">
+          <span class="delim">/</span>
+        </div>
+      </div>
+    </div>
+    <div class="status-bar">
+      <div class="dot" id="dot"></div>
+      <span id="statusMsg">Enter a pattern…</span>
+      <span id="charCount" style="margin-left:12px;color:var(--text-muted)">0 chars</span>
+      <div class="re2-warns" id="re2Warns"></div>
+    </div>
+  </div>
+
+  <!-- ── Builder + KQL ── -->
+  <div class="two-col">
+
+    <!-- Builder -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">🔧 Pattern Builder</span>
+        <span style="font-size:11px;color:var(--text-muted)">Inserts at cursor position</span>
+      </div>
+      <div class="tabs" id="builderTabs">
+        <div class="tab on" data-t="anchors">Anchors</div>
+        <div class="tab" data-t="classes">Classes</div>
+        <div class="tab" data-t="quantifiers">Quantifiers</div>
+        <div class="tab" data-t="groups">Groups</div>
+        <div class="tab" data-t="escapes">Escapes</div>
+      </div>
+
+      <!-- Anchors -->
+      <div class="tab-pane on" id="tp-anchors">
+        <div class="b-section">
+          <div class="b-label">Position anchors</div>
+          <div class="btn-row">
+            <button class="btn" onclick="ins('^')" title="Start of string/line">^ <span class="d">start</span></button>
+            <button class="btn" onclick="ins('$')" title="End of string/line">$ <span class="d">end</span></button>
+            <button class="btn" onclick="ins('\\b')" title="Word boundary">\b <span class="d">word boundary</span></button>
+            <button class="btn" onclick="ins('\\B')" title="No word boundary">\B <span class="d">no boundary</span></button>
+          </div>
+        </div>
+        <div class="b-section">
+          <div class="b-label">Wildcard</div>
+          <div class="btn-row">
+            <button class="btn" onclick="ins('.')" title="Any character except newline">. <span class="d">any char</span></button>
+            <button class="btn" onclick="ins('[\\s\\S]')" title="Any character including newline">[\s\S] <span class="d">incl. newline</span></button>
+            <button class="btn" onclick="ins('.*')" title="Everything greedy">.* <span class="d">everything</span></button>
+            <button class="btn" onclick="ins('.*?')" title="Everything lazy">.*? <span class="d">everything lazy</span></button>
+          </div>
+        </div>
+        <div class="b-section">
+          <div class="b-label">Alternation</div>
+          <div class="btn-row">
+            <button class="btn" onclick="ins('|')" title="Or (alternation)">| <span class="d">or</span></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Classes -->
+      <div class="tab-pane" id="tp-classes">
+        <div class="b-section">
+          <div class="b-label">Predefined classes</div>
+          <div class="btn-row">
+            <button class="btn" onclick="ins('\\d')" title="Digit [0-9]">\d <span class="d">digit</span></button>
+            <button class="btn" onclick="ins('\\D')" title="No digit">\D <span class="d">no digit</span></button>
+            <button class="btn" onclick="ins('\\w')" title="Word character [a-zA-Z0-9_]">\w <span class="d">word</span></button>
+            <button class="btn" onclick="ins('\\W')" title="No word character">\W <span class="d">no word</span></button>
+            <button class="btn" onclick="ins('\\s')" title="Whitespace">\s <span class="d">space</span></button>
+            <button class="btn" onclick="ins('\\S')" title="No whitespace">\S <span class="d">no space</span></button>
+          </div>
+        </div>
+        <div class="b-section">
+          <div class="b-label">Custom character classes</div>
+          <div class="btn-row">
+            <button class="btn" onclick="wrap('[','  ]','abc')" title="Character class">[abc] <span class="d">class</span></button>
+            <button class="btn" onclick="wrap('[^',']','abc')" title="Negated character class">[^abc] <span class="d">not</span></button>
+            <button class="btn" onclick="ins('[a-z]')" title="Lowercase letters">[a-z]</button>
+            <button class="btn" onclick="ins('[A-Z]')" title="Uppercase letters">[A-Z]</button>
+            <button class="btn" onclick="ins('[0-9]')" title="Digits">[0-9]</button>
+            <button class="btn" onclick="ins('[a-zA-Z]')" title="All letters">[a-zA-Z]</button>
+            <button class="btn" onclick="ins('[a-zA-Z0-9]')" title="Alphanumeric">[a-zA-Z0-9]</button>
+            <button class="btn" onclick="ins('[a-f0-9]')" title="Hexadecimal">[a-f0-9] <span class="d">hex</span></button>
+          </div>
+        </div>
+        <div class="b-section">
+          <div class="b-label">Unicode (RE2)</div>
+          <div class="btn-row">
+            <button class="btn" onclick="ins('\\p{L}')" title="Unicode letter">\p{L} <span class="d">letter</span></button>
+            <button class="btn" onclick="ins('\\p{N}')" title="Unicode digit">\p{N} <span class="d">digit</span></button>
+            <button class="btn" onclick="ins('\\p{Z}')" title="Unicode whitespace">\p{Z} <span class="d">space</span></button>
+            <button class="btn" onclick="ins('\\p{P}')" title="Unicode punctuation">\p{P} <span class="d">punctuation</span></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quantifiers -->
+      <div class="tab-pane" id="tp-quantifiers">
+        <div class="b-section">
+          <div class="b-label">Greedy quantifiers</div>
+          <div class="btn-row">
+            <button class="btn" onclick="ins('?')" title="0 or 1 time">? <span class="d">0 or 1</span></button>
+            <button class="btn" onclick="ins('*')" title="0 or more times">* <span class="d">0 or more</span></button>
+            <button class="btn" onclick="ins('+')" title="1 or more times">+ <span class="d">1 or more</span></button>
+          </div>
+        </div>
+        <div class="b-section">
+          <div class="b-label">Lazy quantifiers</div>
+          <div class="btn-row">
+            <button class="btn" onclick="ins('??')" title="0 or 1 lazy">?? <span class="d">0 or 1</span></button>
+            <button class="btn" onclick="ins('*?')" title="0 or more lazy">*? <span class="d">0 or more</span></button>
+            <button class="btn" onclick="ins('+?')" title="1 or more lazy">+? <span class="d">1 or more</span></button>
+          </div>
+        </div>
+        <div class="b-section">
+          <div class="b-label">Exact repetitions</div>
+          <div class="btn-row">
+            <button class="btn" onclick="insQuant('{n}')">{n} <span class="d">exact</span></button>
+            <button class="btn" onclick="insQuant('{n,}')">{n,} <span class="d">min n</span></button>
+            <button class="btn" onclick="insQuant('{n,m}')">{n,m} <span class="d">n to m</span></button>
+            <button class="btn" onclick="ins('{2}')">{2}</button>
+            <button class="btn" onclick="ins('{3}')">{3}</button>
+            <button class="btn" onclick="ins('{4}')">{4}</button>
+            <button class="btn" onclick="ins('{8}')">{8}</button>
+            <button class="btn" onclick="ins('{16}')">{16}</button>
+            <button class="btn" onclick="ins('{32}')">{32}</button>
+            <button class="btn" onclick="ins('{64}')">{64}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Groups -->
+      <div class="tab-pane" id="tp-groups">
+        <div class="b-section">
+          <div class="b-label">Groups</div>
+          <div class="btn-row">
+            <button class="btn" onclick="wrap('(',')')" title="Capture group">(…) <span class="d">capture</span></button>
+            <button class="btn" onclick="wrap('(?:',')')" title="Non-capture group">(?:…) <span class="d">non-capture</span></button>
+            <button class="btn" onclick="insNamed()" title="Named group RE2-style">(?P&lt;name&gt;…) <span class="d">named</span></button>
+          </div>
+        </div>
+        <div class="b-section">
+          <div class="b-label">Lookahead <span style="color:var(--success);font-size:10px;font-weight:700"> ✓ RE2</span></div>
+          <div class="btn-row">
+            <button class="btn hi" onclick="wrap('(?=',')')" title="Positive lookahead">(?=…) <span class="d">lookahead</span></button>
+            <button class="btn hi" onclick="wrap('(?!',')')" title="Negative lookahead">(?!…) <span class="d">neg. lookahead</span></button>
+          </div>
+          <div class="warn-box">⚠️ Lookbehind <code>(?&lt;=…)</code> and <code>(?&lt;!…)</code> are <strong>NOT</strong> supported by RE2/KQL</div>
+        </div>
+        <div class="b-section">
+          <div class="b-label">Inline flags (RE2)</div>
+          <div class="btn-row">
+            <button class="btn" onclick="prependFlag('(?i)')" title="Case-insensitive">(?i) <span class="d">case-insensitive</span></button>
+            <button class="btn" onclick="prependFlag('(?m)')" title="Multiline">(?m) <span class="d">multiline</span></button>
+            <button class="btn" onclick="prependFlag('(?s)')" title="Dotall">(?s) <span class="d">dotall</span></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Escapes -->
+      <div class="tab-pane" id="tp-escapes">
+        <div class="b-section" style="background:rgba(56,139,253,.06);border:1px solid rgba(56,139,253,.2);border-radius:6px;padding:10px;">
+          <div class="b-label" style="color:var(--blue)">⚡ Auto-escape literal text</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Paste your search term (e.g. <code style="background:var(--bg3);padding:1px 5px;border-radius:3px;font-family:monospace">id23.domain.tld</code>) — all regex special chars are automatically escaped.</div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" id="literalInput" placeholder="Paste literal text here…" style="flex:1;font-family:'Cascadia Code','Consolas',monospace;" oninput="previewLiteral()">
+            <button class="btn hi" onclick="insertLiteral()" style="white-space:nowrap;padding:6px 12px;">Insert as regex</button>
+            <button class="btn" onclick="replaceLiteral()" style="white-space:nowrap;padding:6px 12px;">Replace</button>
+          </div>
+          <div id="literalPreview" style="margin-top:6px;font:11px 'Cascadia Code','Consolas',monospace;color:var(--text-muted);min-height:16px;"></div>
+        </div>
+        <div class="b-section">
+          <div class="b-label">Escape special characters</div>
+          <div class="btn-row">
+            <button class="btn" onclick="ins('\\.')" title="Literal dot">\. <span class="d">.</span></button>
+            <button class="btn" onclick="ins('\\*')" title="Literal asterisk">\* <span class="d">*</span></button>
+            <button class="btn" onclick="ins('\\+')" title="Literal plus">\+ <span class="d">+</span></button>
+            <button class="btn" onclick="ins('\\?')" title="Literal question mark">\? <span class="d">?</span></button>
+            <button class="btn" onclick="ins('\\(')" title="Opening parenthesis">\(</button>
+            <button class="btn" onclick="ins('\\)')" title="Closing parenthesis">\)</button>
+            <button class="btn" onclick="ins('\\[')" title="Square bracket">\[</button>
+            <button class="btn" onclick="ins('\\]')" title="Square bracket">\]</button>
+            <button class="btn" onclick="ins('\\{')" title="Curly brace">\{</button>
+            <button class="btn" onclick="ins('\\}')" title="Curly brace">\}</button>
+            <button class="btn" onclick="ins('\\|')" title="Pipe">\|</button>
+            <button class="btn" onclick="ins('\\\\')" title="Backslash">\\ <span class="d">\</span></button>
+            <button class="btn" onclick="ins('\\^')" title="Caret">\^</button>
+            <button class="btn" onclick="ins('\\$')" title="Dollar">\$</button>
+            <button class="btn" onclick="ins('\\-')" title="Hyphen">\-</button>
+            <button class="btn" onclick="ins('\\/')" title="Slash">\/</button>
+          </div>
+        </div>
+        <div class="b-section">
+          <div class="b-label">Whitespace</div>
+          <div class="btn-row">
+            <button class="btn" onclick="ins('\\n')">\n <span class="d">newline</span></button>
+            <button class="btn" onclick="ins('\\r')">\r <span class="d">CR</span></button>
+            <button class="btn" onclick="ins('\\t')">\t <span class="d">tab</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KQL Generator -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">⚡ KQL Query Generator</span>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+          <div>
+            <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;font-weight:700">Table name</div>
+            <input type="text" id="kqlTable" value="TableName" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;font-weight:700">Field name</div>
+            <input type="text" id="kqlField" value="FieldName" style="width:100%">
+          </div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;font-weight:700">Query type</div>
+          <select id="kqlType" style="width:100%" onchange="refreshExtra();updateKQL()">
+            <option value="filter">Filter — matches regex</option>
+            <option value="negate">Negate — !matches regex</option>
+            <option value="extract">Extract — capture group</option>
+            <option value="extract_all">Extract All — all matches</option>
+            <option value="replace">Replace — replace pattern</option>
+            <option value="count">Count — count matches</option>
+            <option value="summarize">Summarize — group by extract</option>
+            <option value="parse">Parse — multiple capture groups</option>
+          </select>
+        </div>
+        <div id="extraWrap" style="display:none;margin-bottom:10px;">
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;font-weight:700" id="extraLabel">Extra</div>
+          <input type="text" id="extraVal" style="width:100%" placeholder="">
+        </div>
+        <div class="kql-snippets" id="kqlSnippets">
+          <span style="color:var(--text-muted);font-size:12px;">Enter a pattern…</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Pattern Library ── -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">📚 Pattern Library</span>
+      <span style="font-size:11px;color:var(--text-muted)">Click to load pattern · hover for description</span>
+    </div>
+    <div class="card-body" id="libWrap"></div>
+  </div>
+
+  <!-- ── Pattern Generator ── -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">🧬 Pattern Generator <span class="badge" style="background:rgba(63,185,80,.12);color:var(--success);margin-left:4px">New</span></span>
+      <span style="font-size:11px;color:var(--text-muted)">Provide examples → automatically generated regex</span>
+    </div>
+    <div class="card-body">
+      <div class="two-col" style="gap:12px">
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:700;margin-bottom:4px">✅ Examples that should match <span style="color:var(--text-muted);font-weight:400;text-transform:none">(one per line)</span></div>
+          <textarea id="genPos" style="width:100%;min-height:110px;resize:vertical;font:13px/1.6 'Cascadia Code','Consolas',monospace;" placeholder="id23.domain.tld&#10;id99.sub.domain.nl&#10;user01.corp.local" spellcheck="false"></textarea>
+        </div>
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:700;margin-bottom:4px">❌ Examples that should NOT match <span style="color:var(--text-muted);font-weight:400;text-transform:none">(optional)</span></div>
+          <textarea id="genNeg" style="width:100%;min-height:110px;resize:vertical;font:13px/1.6 'Cascadia Code','Consolas',monospace;" placeholder="random-text&#10;12345" spellcheck="false"></textarea>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+        <button class="btn hi" onclick="runGenerator()" style="padding:7px 18px;font-family:inherit;font-size:13px;font-weight:600">⚡ Generate patterns</button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer">
+          <input type="checkbox" id="genAnchors" checked style="accent-color:var(--accent)"> Add ^ and $ anchors
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer">
+          <input type="checkbox" id="genCaseI" style="accent-color:var(--accent)"> case-insensitive
+        </label>
+      </div>
+      <div id="genResults" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- ── Test area ── -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">🧪 Test Pattern</span>
+      <span id="matchBadge" style="font-size:12px;color:var(--text-muted)"></span>
+    </div>
+    <div class="card-body">
+      <textarea id="testInput" placeholder="Paste your test text here (multiple lines)…" spellcheck="false"></textarea>
+      <div class="stats-bar" id="statsBar" style="display:none">
+        <span><strong id="sMatches">0</strong> matches</span>
+        <span><strong id="sLines">0</strong> lines</span>
+        <span><strong id="sGroups">0</strong> capture groups</span>
+      </div>
+      <div class="hl-area" id="hlArea" style="display:none"></div>
+      <div class="match-list" id="matchList"></div>
+    </div>
+  </div>
+
+  <!-- ── Explanation ── -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">💡 Pattern Explanation</span>
+    </div>
+    <div class="card-body">
+      <div class="exp-area" id="expArea">
+        <span style="color:var(--text-muted)">Enter a pattern to see the explanation…</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+const ri = document.getElementById('regexInput');
+const flags = { i: false, m: false, s: false };
+let currentQueries = [];
+
+// ─── Pattern library data ─────────────────────────────────────────────────────
+const LIBRARY = {
+  'Network': [
+    { icon:'🌐', name:'IPv4 address',    pat:'(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)', desc:'IPv4 address validation' },
+    { icon:'🌐', name:'IPv4 CIDR',       pat:'(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\/(?:[12]?\\d|3[0-2])', desc:'IPv4 with CIDR notation' },
+    { icon:'🌐', name:'IPv6 (full)',      pat:'(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}', desc:'Full IPv6 address' },
+    { icon:'🔌', name:'MAC address',     pat:'(?:[0-9a-fA-F]{2}[:\\-]){5}[0-9a-fA-F]{2}', desc:'MAC address with : or - separator' },
+    { icon:'🔌', name:'Port number',     pat:'(?:6553[0-5]|655[0-2]\\d|65[0-4]\\d{2}|6[0-4]\\d{3}|[1-5]\\d{4}|[1-9]\\d{1,3}|[1-9])', desc:'Valid TCP/UDP port number 1-65535' },
+    { icon:'🔌', name:'IP:Port',         pat:'(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?):([1-9]\\d{0,4})', desc:'IP address + port number' },
+  ],
+  'Web & Email': [
+    { icon:'🔗', name:'URL (http/https)', pat:'https?:\\/\\/(?:[\\w\\-]+\\.)+[a-zA-Z]{2,}(?::\\d+)?(?:\\/[^\\s]*)?', desc:'HTTP or HTTPS URL' },
+    { icon:'🌍', name:'Domain',           pat:'(?:[a-zA-Z0-9](?:[a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}', desc:'Domain name' },
+    { icon:'📧', name:'Email address',    pat:'[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}', desc:'Email address' },
+    { icon:'📡', name:'HTTP status code', pat:'\\b(?:1[0-9]{2}|2[0-9]{2}|3[0-9]{2}|4[0-9]{2}|5[0-9]{2})\\b', desc:'HTTP status codes 100-599' },
+    { icon:'📡', name:'HTTP method',      pat:'\\b(?:GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|CONNECT|TRACE)\\b', desc:'HTTP request methods' },
+    { icon:'🌐', name:'Query string',     pat:'\\?(?:[\\w\\-%.+]+=[\\w\\-%.+]*&?)+', desc:'URL query string parameters' },
+  ],
+  'Files & Paths': [
+    { icon:'📁', name:'Windows path',    pat:'[A-Za-z]:\\\\(?:[^\\\\\\/:*?"<>|\\r\\n]+\\\\)*[^\\\\\\/:*?"<>|\\r\\n]*', desc:'Windows file path' },
+    { icon:'📁', name:'Windows UNC',     pat:'\\\\\\\\[\\w\\-.]+(?:\\\\[^\\\\\\/:*?"<>|\\r\\n]+)+', desc:'UNC network path \\\\server\\share' },
+    { icon:'📁', name:'Linux/Mac path',  pat:'\\/(?:[\\w\\-.]+\\/)*[\\w\\-.]*', desc:'Unix file path' },
+    { icon:'⚙️', name:'Executable',      pat:'(?i)\\.(?:exe|dll|bat|cmd|ps1|vbs|js|wsf|msi|com|scr|hta|pif)(?:\\b|$)', desc:'Executable file extensions' },
+    { icon:'📄', name:'Document',        pat:'(?i)\\.(?:docx?|xlsx?|pptx?|pdf|txt|csv|json|xml|html?|md)(?:\\b|$)', desc:'Document file types' },
+    { icon:'🗜️', name:'Archive',         pat:'(?i)\\.(?:zip|rar|7z|tar|gz|bz2|xz|cab|iso)(?:\\b|$)', desc:'Archive file types' },
+  ],
+  'Identity & Security': [
+    { icon:'🔑', name:'GUID / UUID',          pat:'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}', desc:'GUID/UUID format' },
+    { icon:'👤', name:'Windows SID',           pat:'S-1-(?:0|1|2|3|5)(?:-\\d+)+', desc:'Windows Security Identifier' },
+    { icon:'👤', name:'UPN (user@domain)',      pat:'[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}', desc:'User Principal Name' },
+    { icon:'🔐', name:'Base64',                pat:'(?:[A-Za-z0-9+\\/]{4})*(?:[A-Za-z0-9+\\/]{2}==|[A-Za-z0-9+\\/]{3}=|[A-Za-z0-9+\\/]{4})', desc:'Base64-encoded string' },
+    { icon:'🔐', name:'JWT token',             pat:'eyJ[A-Za-z0-9_\\-]*\\.[A-Za-z0-9_\\-]*\\.[A-Za-z0-9_\\-]*', desc:'JSON Web Token' },
+    { icon:'🔐', name:'PS encoded command',    pat:'(?i)-(?:en(?:c(?:oded(?:command)?)?)?|ec)\\s+[A-Za-z0-9+\\/=]{20,}', desc:'PowerShell -EncodedCommand flag' },
+  ],
+  'Hashes': [
+    { icon:'#️⃣', name:'MD5 (32)',    pat:'\\b[0-9a-fA-F]{32}\\b', desc:'MD5 hash - 32 hex chars' },
+    { icon:'#️⃣', name:'SHA1 (40)',   pat:'\\b[0-9a-fA-F]{40}\\b', desc:'SHA1 hash - 40 hex chars' },
+    { icon:'#️⃣', name:'SHA256 (64)', pat:'\\b[0-9a-fA-F]{64}\\b', desc:'SHA256 hash - 64 hex chars' },
+    { icon:'#️⃣', name:'SHA512 (128)',pat:'\\b[0-9a-fA-F]{128}\\b', desc:'SHA512 hash - 128 hex chars' },
+  ],
+  'Azure & Cloud': [
+    { icon:'☁️', name:'Azure Resource ID',   pat:'\\/subscriptions\\/[0-9a-f\\-]{36}\\/resourceGroups\\/[^\\/\\s]+\\/providers\\/[^\\/\\s]+\\/[^\\/\\s]+\\/[^\\/\\s]+', desc:'Full Azure resource ID' },
+    { icon:'☁️', name:'Azure Subscription', pat:'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', desc:'Azure subscription GUID' },
+    { icon:'💾', name:'Blob Storage URL',   pat:'[a-z0-9]{3,24}\\.blob\\.core\\.windows\\.net(?:\\/[^\\s]*)?', desc:'Azure Blob Storage URL' },
+    { icon:'⚡', name:'Azure Function URL', pat:'[a-zA-Z0-9\\-]+\\.azurewebsites\\.net\\/api\\/[^\\s]+', desc:'Azure Functions URL' },
+    { icon:'🔑', name:'Azure Key Vault URL',pat:'https:\\/\\/[a-zA-Z0-9\\-]+\\.vault\\.azure\\.net\\/[^\\s]*', desc:'Azure Key Vault URL' },
+  ],
+  'Logs & Events': [
+    { icon:'🕒', name:'ISO 8601 timestamp',  pat:'\\d{4}-[01]\\d-[0-3]\\dT[0-2]\\d:[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|[+\\-][0-2]\\d:[0-5]\\d)?', desc:'ISO 8601 date+time' },
+    { icon:'📅', name:'Date yyyy-mm-dd',     pat:'\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])', desc:'ISO date' },
+    { icon:'📋', name:'Log level',           pat:'(?i)\\b(?:TRACE|DEBUG|INFO|WARN(?:ING)?|ERROR|CRITICAL|FATAL)\\b', desc:'Log severity levels' },
+    { icon:'🪟', name:'Windows Event ID',    pat:'(?i)\\bEventID[: =]+(?:\\d{1,5})\\b', desc:'Windows Event Log ID' },
+    { icon:'⚙️', name:'Process ID (PID)',    pat:'(?i)\\b(?:pid|PID)[: =]+\\d+\\b', desc:'Process identifier' },
+    { icon:'🔒', name:'CVE number',          pat:'CVE-\\d{4}-\\d{4,7}', desc:'CVE vulnerability ID' },
+    { icon:'📋', name:'Syslog priority',     pat:'<(?:1[0-8][0-9]|19[01]|[1-9]?\\d)>', desc:'Syslog PRI field' },
+  ],
+  'PowerShell & CMD': [
+    { icon:'⬇️', name:'Download cradle',    pat:'(?i)(?:Invoke-WebRequest|iwr|wget|curl|Invoke-RestMethod|irm|Net\\.WebClient).*(?:DownloadFile|DownloadString|OpenRead)', desc:'PowerShell download command' },
+    { icon:'💻', name:'CMD /c execute',     pat:'(?i)cmd(?:\\.exe)?\\s*\\/[cCkK]\\s+[^\\s].*', desc:'CMD shell execution' },
+    { icon:'⏰', name:'Schtasks create',    pat:'(?i)schtasks.*\\/(?:create|run|delete|query)', desc:'Scheduled tasks' },
+    { icon:'🔗', name:'Net command',        pat:'(?i)\\bnet(?:\\.exe)?\\s+(?:user|group|localgroup|share|use|view|start|stop)', desc:'Net utility' },
+    { icon:'🗝️', name:'Reg command',        pat:'(?i)\\breg(?:\\.exe)?\\s+(?:add|delete|query|export|import|copy)', desc:'Registry command' },
+    { icon:'🛡️', name:'AMSI bypass hint',  pat:'(?i)\\[System\\.Runtime\\.InteropServices\\.Marshal\\]|amsiInitFailed|amsiContext', desc:'Possible AMSI bypass' },
+  ],
+};
+
+// ─── Flags ────────────────────────────────────────────────────────────────────
+document.getElementById('flagWrap').addEventListener('click', e => {
+  const btn = e.target.closest('.flag-btn');
+  if (!btn) return;
+  const f = btn.dataset.flag;
+  flags[f] = !flags[f];
+  btn.classList.toggle('on', flags[f]);
+  updateAll();
+});
+
+// ─── Insert helpers ───────────────────────────────────────────────────────────
+function ins(text) {
+  const s = ri.selectionStart, e = ri.selectionEnd;
+  ri.value = ri.value.slice(0, s) + text + ri.value.slice(e);
+  ri.selectionStart = ri.selectionEnd = s + text.length;
+  ri.focus(); updateAll();
+}
+
+function wrap(before, after, placeholder) {
+  const s = ri.selectionStart, e = ri.selectionEnd;
+  const sel = ri.value.slice(s, e) || (placeholder || '');
+  const text = before + sel + after;
+  ri.value = ri.value.slice(0, s) + text + ri.value.slice(e);
+  ri.selectionStart = s + before.length;
+  ri.selectionEnd = s + before.length + sel.length;
+  ri.focus(); updateAll();
+}
+
+function insNamed() {
+  const s = ri.selectionStart, e = ri.selectionEnd;
+  const inner = ri.value.slice(s, e) || '';
+  ri.value = ri.value.slice(0, s) + '(?P<name>' + inner + ')' + ri.value.slice(e);
+  ri.selectionStart = s + 4;  // select "name" so user can type their group name
+  ri.selectionEnd   = s + 8;
+  ri.focus(); updateAll();
+}
+
+function insQuant(tpl) {
+  const s = ri.selectionStart;
+  ri.value = ri.value.slice(0, s) + tpl + ri.value.slice(ri.selectionEnd);
+  ri.selectionStart = s + 1;            // select placeholder inside { } for immediate editing
+  ri.selectionEnd   = s + tpl.length - 1;
+  ri.focus(); updateAll();
+}
+
+function prependFlag(flag) {
+  if (!ri.value.includes(flag)) ri.value = flag + ri.value;
+  ri.focus(); updateAll();
+}
+
+// ─── Literal escape helper ──────────────────────────────────────────────────
+function escapeRegexLiteral(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function previewLiteral() {
+  const raw = document.getElementById('literalInput').value;
+  const prev = document.getElementById('literalPreview');
+  if (!raw) { prev.textContent = ''; return; }
+  prev.innerHTML = '→ <span style="color:var(--blue)">' + esc(escapeRegexLiteral(raw)) + '</span>';
+}
+
+function insertLiteral() {
+  const raw = document.getElementById('literalInput').value;
+  if (!raw) return;
+  ins(escapeRegexLiteral(raw));
+}
+
+function replaceLiteral() {
+  const raw = document.getElementById('literalInput').value;
+  if (!raw) return;
+  ri.value = escapeRegexLiteral(raw);
+  ri.focus();
+  updateAll();
+}
+
+function clearAll() {
+  ri.value = '';
+  document.getElementById('testInput').value = '';
+  ri.focus(); updateAll();
+}
+
+function copyRegex() {
+  if (!ri.value) return;
+  navigator.clipboard.writeText(ri.value).then(() => {
+    const btn = document.getElementById('copyRegexBtn');
+    btn.textContent = '✓ Copied';
+    setTimeout(() => { btn.textContent = 'Copy regex'; }, 2000);
+  });
+}
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+document.getElementById('builderTabs').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  document.querySelectorAll('#builderTabs .tab').forEach(t => t.classList.remove('on'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('on'));
+  tab.classList.add('on');
+  document.getElementById('tp-' + tab.dataset.t).classList.add('on');
+});
+
+// ─── Regex helpers ────────────────────────────────────────────────────────────
+function buildRe(pattern, extra) {
+  let fs = 'g';
+  if (flags.i) fs += 'i';
+  if (flags.m) fs += 'm';
+  if (flags.s) fs += 's';
+  if (extra) fs += extra;
+  // Strip leading RE2 inline flags (e.g. (?i)) — fold into JS flags so the pattern
+  // stays valid in JS engines that don't support inline modifiers natively
+  let jsPattern = pattern;
+  const inlineRe = /^\(\?([imsx]+)\)/;
+  let fl;
+  while ((fl = inlineRe.exec(jsPattern)) !== null) {
+    for (const f of fl[1]) {
+      if ('ims'.includes(f) && !fs.includes(f)) fs += f;
+    }
+    jsPattern = jsPattern.slice(fl[0].length);
+  }
+  try { return new RegExp(jsPattern, fs); } catch { return null; }
+}
+
+function kqlPattern(pattern) {
+  let prefix = '';
+  if (flags.i && !pattern.includes('(?i)')) prefix += '(?i)';
+  if (flags.m && !pattern.includes('(?m)')) prefix += '(?m)';
+  if (flags.s && !pattern.includes('(?s)')) prefix += '(?s)';
+  // KQL verbatim strings (@"...") treat backslash literally; " must be doubled as ""
+  return prefix + pattern.replace(/"/g, '""');
+}
+
+// ─── RE2 warning detection ────────────────────────────────────────────────────
+function detectRE2Issues(pattern) {
+  const warns = [];
+  if (/\(\?<[!=]/.test(pattern))         warns.push('Lookbehind (?&lt;=…) niet ondersteund');
+  if (/\\[1-9]/.test(pattern))            warns.push('Backreference \\1 niet ondersteund');
+  if (/\(\?>/.test(pattern))              warns.push('Atomic group (?>…) niet ondersteund');
+  if (/\(\?(?![imsx:=!P<])/.test(pattern)) warns.push('Unknown group syntax');
+  return warns;
+}
+
+// ─── Status update ────────────────────────────────────────────────────────────
+function updateStatus(pattern) {
+  const wrap = document.getElementById('regexWrap');
+  const dot = document.getElementById('dot');
+  const msg = document.getElementById('statusMsg');
+  const cc = document.getElementById('charCount');
+  const warnEl = document.getElementById('re2Warns');
+
+  cc.textContent = pattern.length + ' chars';
+
+  if (!pattern) {
+    wrap.className = 'regex-wrap';
+    dot.className = 'dot';
+    msg.className = '';
+    msg.textContent = 'Enter a pattern…';
+    warnEl.innerHTML = '';
+    return;
+  }
+
+  const re = buildRe(pattern);
+  if (re) {
+    wrap.className = 'regex-wrap valid';
+    dot.className = 'dot ok';
+    msg.className = 'ok';
+    msg.textContent = '✓ Valid pattern';
+  } else {
+    wrap.className = 'regex-wrap invalid';
+    dot.className = 'dot err';
+    msg.className = 'err';
+    try { new RegExp(pattern); } catch(e) { msg.textContent = '✗ ' + e.message; }
+  }
+
+  const warns = detectRE2Issues(pattern);
+  warnEl.innerHTML = warns.map(w => `<span class="warn-pill">⚠ ${w}</span>`).join('');
+}
+
+// ─── KQL Generator ───────────────────────────────────────────────────────────
+function refreshExtra() {
+  const type = document.getElementById('kqlType').value;
+  const wrap = document.getElementById('extraWrap');
+  const lbl  = document.getElementById('extraLabel');
+  const val  = document.getElementById('extraVal');
+  if (type === 'replace') {
+    wrap.style.display = '';
+    lbl.textContent = 'Replacement text';
+    val.placeholder = 'e.g. [REDACTED]';
+  } else if (type === 'extract') {
+    wrap.style.display = '';
+    lbl.textContent = 'Capture group number';
+    val.placeholder = '1';
+    if (!val.value) val.value = '1';
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+function hl(q) {
+  return q
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\b(TableName|let|where|extend|project|summarize|sort by|order by|count|by|desc|asc|mv-expand|datatable)\b/g,'<span class="kw">$1</span>')
+    .replace(/\b(matches regex|extract_all|extract|replace_regex|countof|isnotempty|isnotnull|tostring|toint|todatetime|parse_url|split|strcat|toupper|tolower)\b/g,'<span class="fn">$1</span>')
+    .replace(/(!matches regex)/g,'<span class="op">$1</span>')
+    .replace(/@"([^"]*)"/g,'<span class="str">@"$1"</span>');
+}
+
+function updateKQL() {
+  const pattern = ri.value;
+  const table   = document.getElementById('kqlTable').value || 'TableName';
+  const field   = document.getElementById('kqlField').value || 'FieldName';
+  const type    = document.getElementById('kqlType').value;
+  const extra   = document.getElementById('extraVal').value;
+  const snippets = document.getElementById('kqlSnippets');
+
+  if (!pattern) {
+    currentQueries = [];
+    snippets.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">Enter a pattern…</span>';
+    return;
+  }
+
+  const p = kqlPattern(pattern);
+  const repl  = extra || '[REPLACEMENT]';
+  const grp   = parseInt(extra) || 1;
+
+  let queries = [];
+  switch (type) {
+    case 'filter':
+      queries = [
+        { label: 'Filter operator', q: `| where ${field} matches regex @"${p}"` },
+        { label: 'Full query example', q: `${table}\n| where ${field} matches regex @"${p}"\n| project TimeGenerated, ${field}` },
+      ]; break;
+    case 'negate':
+      queries = [
+        { label: 'Negate filter', q: `| where ${field} !matches regex @"${p}"` },
+        { label: 'Full example', q: `${table}\n| where isnotempty(${field})\n| where ${field} !matches regex @"${p}"\n| project TimeGenerated, ${field}` },
+      ]; break;
+    case 'extract':
+      queries = [
+        { label: `Extract capture group ${grp}`, q: `| extend extracted = extract(@"${p}", ${grp}, ${field})` },
+        { label: 'Extract + filter empty', q: `| extend extracted = extract(@"${p}", ${grp}, ${field})\n| where isnotempty(extracted)` },
+        { label: 'Full example', q: `${table}\n| extend extracted = extract(@"${p}", ${grp}, ${field})\n| where isnotempty(extracted)\n| project TimeGenerated, ${field}, extracted` },
+      ]; break;
+    case 'extract_all':
+      queries = [
+        { label: 'Extract all matches', q: `| extend all_matches = extract_all(@"${p}", ${field})` },
+        { label: 'Expand to rows', q: `| extend all_matches = extract_all(@"${p}", ${field})\n| mv-expand all_matches\n| extend match_val = tostring(all_matches)` },
+      ]; break;
+    case 'replace':
+      queries = [
+        { label: 'Replace pattern', q: `| extend cleaned = replace_regex(${field}, @"${p}", @"${repl}")` },
+        { label: 'Replace in-place', q: `| extend ${field} = replace_regex(${field}, @"${p}", @"${repl}")` },
+      ]; break;
+    case 'count':
+      queries = [
+        { label: 'Count matches per row', q: `| extend match_count = countof(${field}, @"${p}")` },
+        { label: 'Filter rows with match', q: `| extend match_count = countof(${field}, @"${p}")\n| where match_count > 0` },
+      ]; break;
+    case 'summarize':
+      queries = [
+        { label: 'Summarize by extraction', q: `${table}\n| extend key = extract(@"${p}", 1, ${field})\n| where isnotempty(key)\n| summarize Count = count() by key\n| sort by Count desc` },
+      ]; break;
+    case 'parse':
+      queries = [
+        { label: 'Parse multiple capture groups', q: `| extend parsed = extract_all(@"${p}", ${field})\n| mv-expand parsed\n| extend col1 = tostring(parsed[0]), col2 = tostring(parsed[1])` },
+        { label: 'Let variable definition', q: `let regex_pattern = @"${p}";\n${table}\n| where ${field} matches regex regex_pattern\n| extend extracted = extract(regex_pattern, 1, ${field})` },
+      ]; break;
+  }
+
+  currentQueries = queries;
+  snippets.innerHTML = queries.map((q, i) => `
+    <div>
+      <div class="kql-label">${q.label}</div>
+      <div class="kql-out-wrap">
+        <div class="kql-out">${hl(q.q)}</div>
+        <button class="copy-btn" onclick="copyQuery(${i})">Copy</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function copyQuery(idx) {
+  const q = currentQueries[idx];
+  if (!q) return;
+  navigator.clipboard.writeText(q.q).then(() => {
+    const btns = document.querySelectorAll('#kqlSnippets .copy-btn');
+    const btn = btns[idx];
+    if (!btn) return;
+    btn.textContent = '✓';
+    btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('ok'); }, 2000);
+  });
+}
+
+// ─── Pattern library ─────────────────────────────────────────────────────────
+let patFlat = [];
+
+function buildLibrary() {
+  const wrap = document.getElementById('libWrap');
+  patFlat = [];
+  wrap.innerHTML = Object.entries(LIBRARY).map(([cat, items]) => {
+    const start = patFlat.length;
+    patFlat.push(...items);
+    const tags = items.map((p, i) =>
+      `<button class="pat-tag" onclick="loadPat(${start + i})" title="${p.desc}">
+        <span>${p.icon}</span><span>${p.name}</span>
+       </button>`
+    ).join('');
+    return `<div class="lib-cat">
+      <div class="lib-cat-title">${cat}</div>
+      <div class="lib-grid">${tags}</div>
+    </div>`;
+  }).join('');
+}
+
+function loadPat(idx) {
+  ri.value = patFlat[idx].pat;
+  ri.focus();
+  ri.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  updateAll();
+}
+
+// ─── Test area ────────────────────────────────────────────────────────────────
+function updateTest() {
+  const text    = document.getElementById('testInput').value;
+  const pattern = ri.value;
+  const hlArea  = document.getElementById('hlArea');
+  const stats   = document.getElementById('statsBar');
+  const mlist   = document.getElementById('matchList');
+  const badge   = document.getElementById('matchBadge');
+
+  if (!text || !pattern) {
+    hlArea.style.display = 'none';
+    stats.style.display = 'none';
+    mlist.innerHTML = '';
+    badge.textContent = '';
+    return;
+  }
+
+  const re = buildRe(pattern);
+  if (!re) {
+    hlArea.style.display = 'none';
+    stats.style.display = 'none';
+    mlist.innerHTML = '';
+    badge.textContent = '';
+    return;
+  }
+
+  const matches = [...text.matchAll(re)];
+  badge.textContent = matches.length + ' match' + (matches.length !== 1 ? 'es' : '');
+
+  stats.style.display = '';
+  document.getElementById('sMatches').textContent = matches.length;
+
+  const linesHit = new Set();
+  let totalGroups = 0;
+  matches.forEach(m => {
+    const line = text.slice(0, m.index).split('\n').length;
+    linesHit.add(line);
+    if (m.length > 1) totalGroups += m.filter((g, i) => i > 0 && g !== undefined).length;
+  });
+  document.getElementById('sLines').textContent = linesHit.size;
+  document.getElementById('sGroups').textContent = totalGroups;
+
+  // Build highlight
+  let out = '', last = 0;
+  matches.forEach((m, i) => {
+    if (m.index === undefined) return;
+    out += esc(text.slice(last, m.index));
+    out += `<mark class="m${i % 3}">${esc(m[0])}</mark>`;
+    last = m.index + m[0].length;
+  });
+  out += esc(text.slice(last));
+  hlArea.innerHTML = out;
+  hlArea.style.display = '';
+
+  // Match list
+  if (matches.length === 0) {
+    mlist.innerHTML = '<div class="match-item" style="color:var(--text-muted)">No matches</div>';
+  } else {
+    mlist.innerHTML = matches.slice(0, 100).map((m, i) => {
+      const grps = m.slice(1).filter(g => g !== undefined);
+      const grpHtml = grps.map((g, gi) =>
+        `<span class="match-grp">group ${gi + 1}: <span class="match-val" style="color:#c084fc;border-color:rgba(168,85,247,.2);background:rgba(168,85,247,.08)">${esc(g)}</span></span>`
+      ).join(' ');
+      return `<div class="match-item">
+        <span class="match-num">#${i + 1}</span>
+        <span class="match-val">${esc(m[0])}</span>
+        <span class="match-pos">pos ${m.index}</span>
+        ${grpHtml}
+      </div>`;
+    }).join('') + (matches.length > 100 ? `<div class="match-item" style="color:var(--text-muted)">… and ${matches.length - 100} more</div>` : '');
+  }
+}
+
+function esc(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Regex Explanation ────────────────────────────────────────────────────────
+function updateExp(pattern) {
+  const el = document.getElementById('expArea');
+  if (!pattern) {
+    el.innerHTML = '<span style="color:var(--text-muted)">Enter a pattern to see the explanation…</span>';
+    return;
+  }
+  const tokens = tokenize(pattern);
+  el.innerHTML = tokens.map(t =>
+    `<div class="exp-tok t-${t.type}"><code>${esc(t.raw)}</code><span class="exp-desc">— ${t.desc}</span></div>`
+  ).join('') || '<span style="color:var(--text-muted)">No tokens recognized</span>';
+}
+
+function tokenize(p) {
+  const toks = [];
+  let i = 0;
+  while (i < p.length) {
+    const ch = p[i];
+
+    // Inline flags (?i), (?m) etc.
+    if (ch === '(' && p[i+1] === '?' && /[imsx]/.test(p[i+2]) && p[i+3] === ')') {
+      const f = p[i+2];
+      const fn = {i:'case-insensitive', m:'multiline (^ and $ per line)', s:'dotall (. matches newline)', x:'extended (whitespace ignored)'};
+      toks.push({ raw:`(?${f})`, type:'group', desc:`Inline flag: ${fn[f]||f}` });
+      i += 4; continue;
+    }
+
+    // Named group (?P<name>
+    if (ch === '(' && p.slice(i,i+4) === '(?P<') {
+      const end = p.indexOf('>', i+4);
+      if (end !== -1) {
+        const name = p.slice(i+4, end);
+        toks.push({ raw:`(?P<${name}>`, type:'group', desc:`Named capture group: "${name}"` });
+        i = end + 1; continue;
+      }
+    }
+
+    // Group openers
+    if (ch === '(') {
+      const s = p.slice(i);
+      if (s.startsWith('(?<=')) { toks.push({raw:'(?<=',type:'group',desc:'⚠️ Positive lookbehind — NOT supported in RE2/KQL'}); i+=4; continue; }
+      if (s.startsWith('(?<!')) { toks.push({raw:'(?<!',type:'group',desc:'⚠️ Negative lookbehind — NOT supported in RE2/KQL'}); i+=4; continue; }
+      if (s.startsWith('(?='))  { toks.push({raw:'(?=', type:'group',desc:'Positive lookahead: asserts this pattern follows'}); i+=3; continue; }
+      if (s.startsWith('(?!'))  { toks.push({raw:'(?!', type:'group',desc:'Negative lookahead: asserts this pattern does NOT follow'}); i+=3; continue; }
+      if (s.startsWith('(?:'))  { toks.push({raw:'(?:',type:'group',desc:'Non-capturing group: groups without capturing'}); i+=3; continue; }
+      toks.push({raw:'(', type:'group', desc:'Start capture group'}); i++; continue;
+    }
+    if (ch === ')') { toks.push({raw:')', type:'group', desc:'End group'}); i++; continue; }
+
+    // Character class [...]
+    if (ch === '[') {
+      let j = i+1, raw = '[';
+      const neg = p[j] === '^';
+      if (neg) { raw += '^'; j++; }
+      while (j < p.length && p[j] !== ']') {
+        if (p[j] === '\\') { raw += p[j]+p[j+1]; j+=2; } else { raw += p[j]; j++; }
+      }
+      if (j < p.length) raw += ']';
+      const inside = neg ? raw.slice(2,-1) : raw.slice(1,-1);
+      toks.push({raw, type:'class', desc: neg ? `Character class: NONE of [${inside}]` : `Character class: one of [${inside}]`});
+      i = j+1; continue;
+    }
+
+    // Escape sequences
+    if (ch === '\\') {
+      const nx = p[i+1] || '';
+      const raw = '\\' + nx;
+      const MAP = {
+        d:'Digit [0-9]', D:'No digit [^0-9]',
+        w:'Word character [a-zA-Z0-9_]', W:'No word character',
+        s:'Whitespace (space, tab, newline)', S:'No whitespace',
+        b:'Word boundary', B:'No word boundary',
+        n:'Newline (LF)', r:'Carriage return (CR)', t:'Horizontal tab',
+        '.':'Literal dot', '*':'Literal asterisk', '+':'Literal plus',
+        '?':'Literal question mark', '(':'Literal parenthesis (', ')':'Literal parenthesis )',
+        '[':'Literal bracket [', ']':'Literal bracket ]',
+        '{':'Literal brace {', '}':'Literal brace }',
+        '|':'Literal pipe |', '\\':'Literal backslash \\',
+        '^':'Literal caret ^', '$':'Literal dollar $',
+        '-':'Literal hyphen -', '/':'Literal slash /',
+      };
+      toks.push({raw, type:'class', desc: MAP[nx] || `Escape sequence: ${raw}`});
+      i += 2; continue;
+    }
+
+    // Unicode property \p{...}
+    if (ch === '\\' && p[i+1] === 'p') { /* handled above */ }
+
+    // Quantifiers
+    if ('*+?'.includes(ch)) {
+      const lazy = p[i+1] === '?';
+      const raw = ch + (lazy ? '?' : '');
+      const QM = { '*':'0 or more times', '+':'1 or more times', '?':'0 or 1 time' };
+      toks.push({raw, type:'quant', desc: QM[ch] + (lazy ? ' (lazy — as few as possible)' : ' (greedy — as many as possible)')});
+      i += lazy ? 2 : 1; continue;
+    }
+
+    if (ch === '{') {
+      let j = i+1, raw = '{';
+      while (j < p.length && p[j] !== '}') { raw += p[j]; j++; }
+      raw += '}';
+      const lazy = p[j+1] === '?';
+      if (lazy) { raw += '?'; j++; }
+      const inner = raw.slice(1, lazy ? -2 : -1);
+      const parts = inner.split(',');
+      let desc;
+      if (parts.length === 1) desc = `Exactly ${parts[0]} times`;
+      else if (parts[1] === '') desc = `At least ${parts[0]} times`;
+      else desc = `Between ${parts[0]} and ${parts[1]} times`;
+      if (lazy) desc += ' (lazy)';
+      toks.push({raw, type:'quant', desc});
+      i = j+1; continue;
+    }
+
+    // Anchors
+    if (ch === '^') { toks.push({raw:'^', type:'anchor', desc:'Start of string (or line in multiline mode)'}); i++; continue; }
+    if (ch === '$') { toks.push({raw:'$', type:'anchor', desc:'End of string (or line in multiline mode)'}); i++; continue; }
+
+    // Alternation
+    if (ch === '|') { toks.push({raw:'|', type:'alt', desc:'OR — alternation between left and right side'}); i++; continue; }
+
+    // Literal
+    toks.push({raw:ch, type:'literal', desc:`Literal character: "${ch}"`});
+    i++;
+  }
+  return toks;
+}
+
+// ─── Master update ────────────────────────────────────────────────────────────
+function updateAll() {
+  const pattern = ri.value;
+  updateStatus(pattern);
+  updateKQL();
+  updateTest();
+  updateExp(pattern);
+}
+
+// ─── Event wiring ─────────────────────────────────────────────────────────────
+ri.addEventListener('input', updateAll);
+document.getElementById('kqlTable').addEventListener('input', updateKQL);
+document.getElementById('kqlField').addEventListener('input', updateKQL);
+document.getElementById('kqlType').addEventListener('change', updateKQL);
+document.getElementById('testInput').addEventListener('input', updateTest);
+document.getElementById('extraVal').addEventListener('input', updateKQL);
+
+// ─── Pattern Generator ─────────────────────────────────────────────────────────
+function tokenizeStr(s) {
+  const toks = [];
+  let i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (/[0-9a-fA-F]/.test(c) && /[0-9]/.test(c)) {
+      // pure digit run
+      let j = i;
+      while (j < s.length && /[0-9]/.test(s[j])) j++;
+      toks.push({ type: 'digit', val: s.slice(i, j) });
+      i = j;
+    } else if (/[a-z]/.test(c)) {
+      let j = i;
+      while (j < s.length && /[a-z]/.test(s[j])) j++;
+      toks.push({ type: 'lower', val: s.slice(i, j) });
+      i = j;
+    } else if (/[A-Z]/.test(c)) {
+      let j = i;
+      while (j < s.length && /[A-Z]/.test(s[j])) j++;
+      toks.push({ type: 'upper', val: s.slice(i, j) });
+      i = j;
+    } else {
+      toks.push({ type: 'literal', val: c });
+      i++;
+    }
+  }
+  return toks;
+}
+
+function classForTypes(types) {
+  const has = t => types.has(t);
+  if (types.size === 1 && has('digit')) return { pat: '\\d', name: 'cijfer' };
+  if (types.size === 1 && has('lower')) return { pat: '[a-z]', name: 'kleine letter' };
+  if (types.size === 1 && has('upper')) return { pat: '[A-Z]', name: 'hoofdletter' };
+  if (!has('digit') && (has('lower') || has('upper'))) return { pat: '[a-zA-Z]', name: 'letter' };
+  if (!has('literal')) return { pat: '[a-zA-Z0-9]', name: 'alfanumeriek' };
+  return { pat: '[^\\s]', name: 'niet-spatie' };
+}
+
+function quant(min, max) {
+  if (min === max) return `{${min}}`;
+  if (max - min <= 3) return `{${min},${max}}`;
+  if (min === 1) return '+';
+  return `{${min},}`;
+}
+
+function generateStructurePattern(examples, anchors, casei) {
+  const tokenized = examples.map(tokenizeStr);
+  const prefix = casei ? '(?i)' : '';
+  const anchor_s = anchors ? '^' : '';
+  const anchor_e = anchors ? '$' : '';
+
+  // Check if all have same token count
+  const counts = tokenized.map(t => t.length);
+  if (new Set(counts).size !== 1) return null;
+
+  const n = counts[0];
+  const parts = [];
+
+  for (let p = 0; p < n; p++) {
+    const col = tokenized.map(t => t[p]);
+    const types = new Set(col.map(t => t.type));
+
+    // All same literal char
+    if (types.size === 1 && col[0].type === 'literal') {
+      const chars = new Set(col.map(t => t.val));
+      if (chars.size === 1) {
+        parts.push(escapeRegexLiteral(col[0].val));
+      } else {
+        parts.push('(?:' + [...chars].map(escapeRegexLiteral).join('|') + ')');
+      }
+      continue;
+    }
+
+    // If all same value → literal
+    const vals = new Set(col.map(t => t.val));
+    if (vals.size === 1 && col[0].type !== 'literal') {
+      const v = col[0].val;
+      const cl = classForTypes(types);
+      parts.push(cl.pat + `{${v.length}}`);
+      continue;
+    }
+
+    // Build class + quantifier
+    if ([...types].every(t => t !== 'literal')) {
+      const cl = classForTypes(types);
+      const lens = col.map(t => t.val.length);
+      const mn = Math.min(...lens), mx = Math.max(...lens);
+      parts.push(cl.pat + quant(mn, mx));
+    } else {
+      // mixed with literal → fallback to .+
+      const lens = col.map(t => t.val.length);
+      const mn = Math.min(...lens), mx = Math.max(...lens);
+      parts.push('.' + quant(mn, mx));
+    }
+  }
+
+  return prefix + anchor_s + parts.join('') + anchor_e;
+}
+
+function generateLoosePattern(examples, anchors, casei) {
+  if (!examples.length) return null;
+  const prefix = casei ? '(?i)' : '';
+  const anchor_s = anchors ? '^' : '';
+  const anchor_e = anchors ? '$' : '';
+
+  // LCP
+  let lcp = examples[0];
+  for (const ex of examples) {
+    let i = 0;
+    while (i < lcp.length && i < ex.length && lcp[i] === ex[i]) i++;
+    lcp = lcp.slice(0, i);
+  }
+  // LCS (suffix)
+  let lcs = examples[0];
+  for (const ex of examples) {
+    let i = 0;
+    const a = lcs.split('').reverse().join('');
+    const b = ex.split('').reverse().join('');
+    while (i < a.length && i < b.length && a[i] === b[i]) i++;
+    lcs = lcs.slice(lcs.length - i);
+  }
+  // avoid overlap
+  if (lcp.length + lcs.length > examples[0].length) lcs = '';
+
+  const midLens = examples.map(ex => ex.slice(lcp.length, ex.length - lcs.length || undefined).length);
+  const mn = Math.min(...midLens), mx = Math.max(...midLens);
+  let mid;
+  if (mn === 0 && mx === 0) mid = '';
+  else if (mn === mx) mid = `.{${mn}}`;
+  else mid = `.{${mn},${mx}}`;
+
+  return prefix + anchor_s + escapeRegexLiteral(lcp) + mid + escapeRegexLiteral(lcs) + anchor_e;
+}
+
+function generateExactAlt(examples, anchors, casei) {
+  const prefix = casei ? '(?i)' : '';
+  const anchor_s = anchors ? '^' : '';
+  const anchor_e = anchors ? '$' : '';
+  const alts = examples.map(escapeRegexLiteral);
+  if (alts.length === 1) return prefix + anchor_s + alts[0] + anchor_e;
+  return prefix + anchor_s + '(?:' + alts.join('|') + ')' + anchor_e;
+}
+
+function checkNeg(pat, negatives) {
+  if (!negatives.length) return [];
+  try {
+    const re = new RegExp(pat, 'i');
+    return negatives.filter(n => re.test(n));
+  } catch { return []; }
+}
+
+function testPattern(pat, examples) {
+  try {
+    const re = new RegExp(pat);
+    return examples.every(ex => re.test(ex));
+  } catch { return false; }
+}
+
+function genResultCard(label, pat, hit, miss, negHits, idx) {
+  const statusColor = !hit ? 'var(--error)' : negHits.length ? 'var(--warn)' : 'var(--success)';
+  const statusMsg   = !hit
+    ? '✗ Does not match all positive examples'
+    : negHits.length
+      ? `⚠ Also matches negative example: ${negHits.map(n => `"${n}"`).join(', ')}`
+      : '✓ Matches all positive examples' + (miss.length ? '' : ' — negative examples excluded');
+
+  return `<div style="margin-bottom:10px">
+    <div class="kql-label">${label}</div>
+    <div class="kql-out-wrap">
+      <div class="kql-out" style="color:var(--blue)">${esc(pat)}</div>
+      <button class="copy-btn" onclick="copyGenPat(${idx})">Copy</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap">
+      <span style="font-size:11px;color:${statusColor}">${statusMsg}</span>
+      <button class="btn hi" onclick="loadGenPat(${idx})" style="font-family:inherit;font-size:11px;padding:2px 10px;margin-left:auto">Load into regex ↑</button>
+    </div>
+  </div>`;
+}
+
+let _genPatterns = [];
+
+function copyGenPat(i) {
+  navigator.clipboard.writeText(_genPatterns[i] || '').then(() => {
+    const btns = document.querySelectorAll('#genResults .copy-btn');
+    if (btns[i]) { btns[i].textContent = '✓'; btns[i].classList.add('ok'); }
+    setTimeout(() => { if (btns[i]) { btns[i].textContent = 'Copy'; btns[i].classList.remove('ok'); } }, 2000);
+  });
+}
+
+function loadGenPat(i) {
+  if (!_genPatterns[i]) return;
+  ri.value = _genPatterns[i].replace(/^\(\?[imsx]\)/, '');
+  // sync flags
+  const m = _genPatterns[i].match(/^(\(\?[imsx]\))+/);
+  if (m) {
+    const flagStr = m[0];
+    flags.i = flagStr.includes('(?i)');
+    flags.m = flagStr.includes('(?m)');
+    flags.s = flagStr.includes('(?s)');
+    document.querySelectorAll('#flagWrap .flag-btn').forEach(btn => {
+      btn.classList.toggle('on', !!flags[btn.dataset.flag]);
+    });
+  }
+  ri.focus();
+  ri.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  updateAll();
+}
+
+function runGenerator() {
+  const pos = document.getElementById('genPos').value.split('\n').map(s => s.trim()).filter(Boolean);
+  const neg = document.getElementById('genNeg').value.split('\n').map(s => s.trim()).filter(Boolean);
+  const anchors = document.getElementById('genAnchors').checked;
+  const casei   = document.getElementById('genCaseI').checked;
+  const out     = document.getElementById('genResults');
+
+  if (!pos.length) {
+    out.innerHTML = '<div style="color:var(--text-muted);font-size:12px">Enter at least one positive example.</div>';
+    return;
+  }
+
+  const candidates = [];
+
+  const exact = generateExactAlt(pos, anchors, casei);
+  if (exact) candidates.push({ label: '🔒 Exact alternation', pat: exact });
+
+  const struct = generateStructurePattern(pos, anchors, casei);
+  if (struct) candidates.push({ label: '🔧 Structure-based', pat: struct });
+
+  const loose = generateLoosePattern(pos, anchors, casei);
+  if (loose && loose !== struct) candidates.push({ label: '🔓 Loose pattern (LCP/LCS)', pat: loose });
+
+  _genPatterns = candidates.map(c => c.pat);
+
+  if (!candidates.length) {
+    out.innerHTML = '<div style="color:var(--error);font-size:12px">Could not generate a pattern.</div>';
+    return;
+  }
+
+  out.innerHTML = candidates.map((c, i) => {
+    const hit     = testPattern(c.pat, pos);
+    const miss    = pos.filter(ex => { try { return !new RegExp(c.pat).test(ex); } catch { return true; } });
+    const negHits = checkNeg(c.pat, neg);
+    return genResultCard(c.label, c.pat, hit, miss, negHits, i);
+  }).join('');
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+buildLibrary();
+updateAll();
+</script>
+</body>
+</html>

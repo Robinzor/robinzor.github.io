@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV to Kusto Table Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .paste-section {
+            margin-bottom: 30px;
+        }
+
+        .paste-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .csv-textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+
+        .csv-textarea:focus {
+            outline: none;
+            border-color: #764ba2;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .options-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .options-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .option-group {
+            margin-bottom: 15px;
+        }
+
+        .option-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .option-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+
+        .option-group input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        .checkbox-label {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .results-section.active {
+            display: block;
+        }
+
+        .result-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .code-block pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #764ba2;
+        }
+
+        .copy-btn.copied {
+            background: #28a745;
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .preview-table th,
+        .preview-table td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        .preview-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .preview-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .preview-table tr:hover {
+            background: #e9ecef;
+        }
+
+        .info-message {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #28a745;
+        }
+
+        .nav-links {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin-right: 15px;
+            font-weight: 500;
+        }
+
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .result-tabs {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 CSV to Kusto Table Converter</h1>
+            <p>Convert your CSV files to Kusto (KQL) table definitions with ease</p>
+        </div>
+
+        <div class="content">
+            <div class="options-section" style="margin-bottom: 20px;">
+                <h3>⚙️ Configuration</h3>
+                <div class="option-group">
+                    <label for="tableName">Table Name:</label>
+                    <input type="text" id="tableName" placeholder="Enter table name" value="MyTable">
+                </div>
+                <div class="option-group">
+                    <label for="columnNames">Column Names (comma-separated, leave empty to auto-detect):</label>
+                    <input type="text" id="columnNames" placeholder="e.g. ID, Name, Email, Age">
+                    <small style="color: #666; display: block; margin-top: 5px;">If provided, will override detected/generated column names</small>
+                </div>
+                <div class="option-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="hasHeaders" checked>
+                        First row contains column headers
+                    </label>
+                </div>
+                <div class="option-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="inferTypes" checked>
+                        Auto-detect column data types
+                    </label>
+                </div>
+                <div class="option-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="removeNonAscii">
+                        Remove non-ASCII characters
+                    </label>
+                </div>
+            </div>
+
+            <div class="paste-section">
+                <h3>📋 Paste CSV Data</h3>
+                <textarea 
+                    id="csvTextarea" 
+                    class="csv-textarea" 
+                    placeholder="Paste your CSV data here...&#10;&#10;Example:&#10;Name,Age,Email&#10;John Doe,30,john@example.com&#10;Jane Smith,25,jane@example.com"></textarea>
+                <input type="file" id="fileInput" class="file-input" accept=".csv">
+                <button class="btn" onclick="processPastedCSV()">Convert CSV</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">Or Upload File</button>
+            </div>
+
+            <div id="columnSelectionArea" style="display: none; margin: 20px 0; padding: 20px; background: #f0f0f0; border-radius: 8px;">
+                <h3 style="margin-bottom: 15px;">Select Columns to Include</h3>
+                <div id="columnCheckboxes" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;"></div>
+                <button class="btn" onclick="processCSV()" style="margin-top: 15px;">Generate with Selected Columns</button>
+            </div>
+
+            <div id="messageArea"></div>
+
+            <div class="results-section" id="resultsSection">
+                <div class="result-tabs">
+                    <button class="tab active" data-tab="schema">Table Schema</button>
+                    <button class="tab" data-tab="preview">Data Preview</button>
+                </div>
+
+                <div class="tab-content active" id="schema">
+                    <h3>Kusto Table Schema</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyToClipboard(event, 'schemaCode')">Copy</button>
+                        <pre id="schemaCode"></pre>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="preview">
+                    <h3>Data Preview (KQL Table Format)</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyToClipboard(event, 'previewCode')">Copy</button>
+                        <pre id="previewCode"></pre>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-secondary" onclick="resetApp()">Convert Another File</button>
+                </div>
+            </div>
+
+            <div class="nav-links">
+                <a href="https://robinzor.nl/csv2kusto/index.html">CSV to Kusto</a>
+                <a href="https://robinzor.nl/markdown2kusto/index.html">Markdown to Kusto</a>
+                <a href="https://robinzor.nl/excel2kusto/index.html">Excel to Kusto</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let csvData = null;
+        let selectedColumns = [];
+
+        // File upload handler
+        const fileInput = document.getElementById('fileInput');
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tabName).classList.add('active');
+            });
+        });
+
+        function processPastedCSV() {
+            const content = document.getElementById('csvTextarea').value.trim();
+            if (!content) {
+                showMessage('Please paste CSV data first.', 'error');
+                return;
+            }
+
+            try {
+                showMessage('Processing CSV data...', 'info');
+                csvData = parseCSV(content);
+                showColumnSelection();
+                showMessage('CSV processed. Select columns to include.', 'success');
+            } catch (error) {
+                showMessage(`Error processing CSV: ${error.message}`, 'error');
+            }
+        }
+
+        function handleFile(file) {
+            if (!file.name.endsWith('.csv')) {
+                showMessage('Please select a valid CSV file.', 'error');
+                return;
+            }
+
+            showMessage('Processing file...', 'info');
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const content = e.target.result;
+                    csvData = parseCSV(content);
+                    showColumnSelection();
+                    showMessage(`File processed. Select columns to include.`, 'success');
+                } catch (error) {
+                    showMessage(`Error processing file: ${error.message}`, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSV(content) {
+            const lines = content.split('\n').filter(line => line.trim());
+            if (lines.length === 0) {
+                throw new Error('CSV file is empty');
+            }
+
+            // Check if user manually provided column names
+            const manualColumnNames = document.getElementById('columnNames').value.trim();
+            let headers;
+            let startRow;
+
+            if (manualColumnNames) {
+                // Use manual column names
+                headers = manualColumnNames.split(',').map(name => name.trim());
+                startRow = 0; // Start from first row as data
+            } else {
+                const hasHeaders = document.getElementById('hasHeaders').checked;
+                if (hasHeaders) {
+                    // First row contains headers
+                    headers = parseCSVLine(lines[0]);
+                    startRow = 1;
+                } else {
+                    // Generate default column names
+                    const firstRowValues = parseCSVLine(lines[0]);
+                    headers = firstRowValues.map((_, index) => `Column${index + 1}`);
+                    startRow = 0;
+                }
+            }
+
+            const rows = [];
+            for (let i = startRow; i < lines.length; i++) {
+                const values = parseCSVLine(lines[i]);
+                if (values.length === headers.length) {
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index];
+                    });
+                    rows.push(row);
+                } else if (values.length > 0) {
+                    // Handle rows with different column counts
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index] || '';
+                    });
+                    rows.push(row);
+                }
+            }
+
+            return { headers, rows };
+        }
+
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                const nextChar = line[i + 1];
+
+                if (char === '"') {
+                    if (inQuotes && nextChar === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+
+            result.push(current.trim());
+            return result;
+        }
+
+        function showColumnSelection() {
+            const checkboxArea = document.getElementById('columnCheckboxes');
+            checkboxArea.innerHTML = '';
+            selectedColumns = csvData.headers.map((_, i) => i);
+
+            csvData.headers.forEach((header, index) => {
+                const label = document.createElement('label');
+                label.style.cssText = 'display: block; cursor: pointer;';
+                label.innerHTML = `<input type="checkbox" checked onchange="toggleColumn(${index})"> ${header}`;
+                checkboxArea.appendChild(label);
+            });
+
+            document.getElementById('columnSelectionArea').style.display = 'block';
+            document.getElementById('resultsSection').classList.remove('active');
+        }
+
+        function toggleColumn(columnIndex) {
+            const idx = selectedColumns.indexOf(columnIndex);
+            if (idx > -1) {
+                selectedColumns.splice(idx, 1);
+            } else {
+                selectedColumns.push(columnIndex);
+                selectedColumns.sort((a, b) => a - b);
+            }
+        }
+
+        function inferDataType(values) {
+            const sampleSize = Math.min(100, values.length);
+            let hasInt = 0;
+            let hasDouble = 0;
+            let hasBool = 0;
+            let hasDateTime = 0;
+
+            for (let i = 0; i < sampleSize; i++) {
+                const value = values[i]?.trim();
+                if (!value || value === '') continue;
+
+                // Check for boolean
+                if (value.toLowerCase() === 'true' || value.toLowerCase() === 'false') {
+                    hasBool++;
+                    continue;
+                }
+
+                // Check for number
+                if (!isNaN(value)) {
+                    if (value.includes('.')) {
+                        hasDouble++;
+                    } else {
+                        hasInt++;
+                    }
+                    continue;
+                }
+
+                // Check for datetime
+                const dateValue = new Date(value);
+                if (!isNaN(dateValue.getTime()) && value.match(/\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}/)) {
+                    hasDateTime++;
+                }
+            }
+
+            const total = sampleSize;
+            if (hasBool / total > 0.8) return 'bool';
+            if (hasDateTime / total > 0.8) return 'datetime';
+            if ((hasInt + hasDouble) / total > 0.8) {
+                return hasDouble > 0 ? 'real' : 'long';
+            }
+
+            return 'string';
+        }
+
+        function processCSV() {
+            if (selectedColumns.length === 0) {
+                showMessage('Please select at least one column.', 'error');
+                return;
+            }
+
+            const tableName = document.getElementById('tableName').value || 'MyTable';
+            const inferTypes = document.getElementById('inferTypes').checked;
+
+            console.log('Processing CSV with table name:', tableName);
+            console.log('CSV Data:', csvData);
+
+            // Generate schema
+            const schema = generateSchema(tableName, inferTypes);
+            console.log('Generated Schema:', schema);
+            document.getElementById('schemaCode').textContent = schema;
+
+            // Generate preview
+            generatePreview();
+
+            // Show results and switch to schema tab
+            document.getElementById('resultsSection').classList.add('active');
+            
+            // Ensure schema tab is active
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+            document.querySelector('.tab[data-tab="schema"]').classList.add('active');
+            document.getElementById('schema').classList.add('active');
+            
+            console.log('Schema element content:', document.getElementById('schemaCode').textContent);
+            console.log('Preview element content:', document.getElementById('previewCode').textContent);
+        }
+
+        function generateSchema(tableName, inferTypes) {
+            const filteredHeaders = selectedColumns.map(i => csvData.headers[i]);
+            const columns = filteredHeaders.map((header, index) => {
+                const sanitizedHeader = sanitizeColumnName(header);
+                let dataType = 'string';
+
+                if (inferTypes) {
+                    const columnValues = csvData.rows.map(row => row[header]);
+                    dataType = inferDataType(columnValues);
+                }
+
+                const comma = index < filteredHeaders.length - 1 ? ',' : '';
+                return `    ${sanitizedHeader}: ${dataType}${comma}`;
+            });
+
+            const schemaOutput = `.create table ${tableName} (\n${columns.join('\n')}\n)`;
+            console.log('Schema Output:', schemaOutput);
+            return schemaOutput;
+        }
+
+        function removeNonAsciiChars(text) {
+            // Remove all non-ASCII characters (anything outside 0-127 range)
+            return text.replace(/[^\x00-\x7F]/g, '');
+        }
+
+        function sanitizeColumnName(name) {
+            // Remove or replace invalid characters, but preserve readability
+            let sanitized = name.trim();
+            
+            // Replace spaces and common separators with underscores
+            sanitized = sanitized.replace(/[\s-]+/g, '_');
+            
+            // Remove special characters except underscores and alphanumerics
+            sanitized = sanitized.replace(/[^a-zA-Z0-9_]/g, '');
+            
+            // Ensure it doesn't start with a number
+            if (/^\d/.test(sanitized)) {
+                sanitized = '_' + sanitized;
+            }
+            
+            // If empty after sanitization, use a default
+            if (!sanitized) {
+                sanitized = 'Column';
+            }
+            
+            return sanitized;
+        }
+
+        function generatePreview() {
+            const tableName = document.getElementById('tableName').value || 'MyTable';
+            const previewRows = csvData.rows;
+            const filteredHeaders = selectedColumns.map(i => csvData.headers[i]);
+            
+            // Generate KQL-style table output
+            let kqlTable = `let ${tableName} = datatable(\n`;
+            
+            // Add column definitions
+            const inferTypes = document.getElementById('inferTypes').checked;
+            const columnDefs = filteredHeaders.map((header, index) => {
+                const sanitizedHeader = sanitizeColumnName(header);
+                let dataType = 'string';
+                
+                if (inferTypes) {
+                    const columnValues = csvData.rows.map(row => row[header]);
+                    dataType = inferDataType(columnValues);
+                }
+                
+                return `${sanitizedHeader}:${dataType}`;
+            });
+            
+            // Format columns: if more than 5 columns, put each on new line
+            if (columnDefs.length > 5) {
+                kqlTable += '    ' + columnDefs.join(',\n    ') + '\n';
+            } else {
+                kqlTable += '    ' + columnDefs.join(', ') + '\n';
+            }
+            
+            kqlTable += ')[';
+            
+            const removeNonAscii = document.getElementById('removeNonAscii').checked;
+            
+            // Add data rows - flatten all values into a single array
+            const allValues = [];
+            previewRows.forEach(row => {
+                filteredHeaders.forEach(header => {
+                    let value = row[header] || '';
+                    
+                    // Remove non-ASCII if option is checked
+                    if (removeNonAscii) {
+                        value = removeNonAsciiChars(value);
+                    }
+                    
+                    const columnValues = csvData.rows.map(r => r[header]);
+                    const dataType = inferTypes ? inferDataType(columnValues) : 'string';
+                    
+                    // Format value based on type
+                    if (dataType === 'string' || dataType === 'datetime') {
+                        // Remove backslashes
+                        const cleanValue = value.replace(/\\/g, '');
+                        allValues.push(`"${cleanValue}"`);
+                    } else if (dataType === 'bool') {
+                        allValues.push(value.toLowerCase());
+                    } else {
+                        allValues.push(value);
+                    }
+                });
+            });
+            
+            // Verify count is correct (should be multiple of column count)
+            const numCols = filteredHeaders.length;
+            const numRows = Math.floor(allValues.length / numCols);
+            const correctValueCount = numRows * numCols;
+            
+            console.log('Columns:', numCols);
+            console.log('Total values:', allValues.length);
+            console.log('Expected:', correctValueCount);
+            console.log('Rows:', numRows);
+            
+            // Trim to exact multiple if needed
+            const validValues = allValues.slice(0, correctValueCount);
+            
+            // Group values by row and format
+            let formattedValues = '\n';
+            for (let i = 0; i < validValues.length; i += numCols) {
+                const rowValues = validValues.slice(i, i + numCols);
+                formattedValues += '    ' + rowValues.join(', ');
+                
+                // Add comma after row except for the last row
+                if (i + numCols < validValues.length) {
+                    formattedValues += ',';
+                }
+                formattedValues += '\n';
+            }
+            
+            kqlTable += formattedValues + '];\n\n';
+            kqlTable += `${tableName}`;
+            
+            document.getElementById('previewCode').textContent = kqlTable;
+        }
+
+        function copyToClipboard(event, elementId) {
+            const text = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        function showMessage(message, type) {
+            const messageArea = document.getElementById('messageArea');
+            const className = type === 'error' ? 'error-message' : 
+                             type === 'success' ? 'success-message' : 'info-message';
+            messageArea.innerHTML = `<div class="${className}">${message}</div>`;
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    messageArea.innerHTML = '';
+                }, 5000);
+            }
+        }
+
+        function resetApp() {
+            csvData = null;
+            selectedColumns = [];
+            document.getElementById('resultsSection').classList.remove('active');
+            document.getElementById('columnSelectionArea').style.display = 'none';
+            document.getElementById('messageArea').innerHTML = '';
+            document.getElementById('fileInput').value = '';
+            document.getElementById('csvTextarea').value = '';
+            document.getElementById('columnNames').value = '';
+            document.querySelectorAll('.tab')[0].click();
+        }
+    </script>
+</body>
+</html>

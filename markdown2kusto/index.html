@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Table to Kusto Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .options-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .options-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .option-group {
+            margin-bottom: 15px;
+        }
+
+        .option-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .option-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+
+        .option-group input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        .checkbox-label {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .markdown-textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 15px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+
+        .markdown-textarea:focus {
+            outline: none;
+            border-color: #764ba2;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .results-section.active {
+            display: block;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .code-block pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #764ba2;
+        }
+
+        .copy-btn.copied {
+            background: #28a745;
+        }
+
+        .info-message {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #28a745;
+        }
+
+        .nav-links {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin-right: 15px;
+            font-weight: 500;
+        }
+
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 Markdown Table to Kusto Converter</h1>
+            <p>Convert Markdown tables to Kusto (KQL) table definitions</p>
+        </div>
+
+        <div class="content">
+            <div class="options-section" style="margin-bottom: 20px;">
+                <h3>⚙️ Configuration</h3>
+                <div class="option-group">
+                    <label for="tableName">Table Name:</label>
+                    <input type="text" id="tableName" placeholder="Enter table name" value="MyTable">
+                </div>
+                <div class="option-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="inferTypes" checked>
+                        Auto-detect column data types
+                    </label>
+                </div>
+                <div class="option-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="removeNonAscii">
+                        Remove non-ASCII characters
+                    </label>
+                </div>
+            </div>
+
+            <div class="paste-section">
+                <h3>📋 Paste Markdown Table</h3>
+                <textarea 
+                    id="markdownTextarea" 
+                    class="markdown-textarea" 
+                    placeholder="Paste your Markdown table here...&#10;&#10;Example:&#10;| Name | Age | Email |&#10;|------|-----|-------|&#10;| John | 30  | john@example.com |&#10;| Jane | 25  | jane@example.com |"></textarea>
+                <div id="tableDetectionArea" style="display: none; margin: 15px 0; padding: 15px; background: #f0f0f0; border-radius: 6px;">
+                    <p style="margin: 0 0 10px 0;"><strong>Detected <span id="tableCount">0</span> table(s)</strong></p>
+                    <div id="tableSelection"></div>
+                </div>
+                <button class="btn" onclick="detectTables()">Detect Tables</button>
+                <button class="btn" onclick="processMarkdown()" id="convertBtn" style="display: none;">Convert Selected Table(s)</button>
+            </div>
+
+            <div id="messageArea"></div>
+
+            <div class="results-section" id="resultsSection">
+                <h3>Kusto Table Schema</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyToClipboard(event, 'schemaCode')">Copy</button>
+                    <pre id="schemaCode"></pre>
+                </div>
+
+                <h3>KQL Datatable Output</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyToClipboard(event, 'datatableCode')">Copy</button>
+                    <pre id="datatableCode"></pre>
+                </div>
+
+                <button class="btn btn-secondary" onclick="resetApp()">Convert Another Table</button>
+            </div>
+
+            <div class="nav-links">
+                <a href="https://robinzor.nl/csv2kusto/index.html">CSV to Kusto</a>
+                <a href="https://robinzor.nl/markdown2kusto/index.html">Markdown to Kusto</a>
+                <a href="https://robinzor.nl/excel2kusto/index.html">Excel to Kusto</a>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allTables = [];
+        let selectedTableIndices = [];
+        let selectedColumns = {};
+
+        function detectTables() {
+            const content = document.getElementById('markdownTextarea').value.trim();
+            if (!content) {
+                showMessage('Please paste Markdown content first.', 'error');
+                return;
+            }
+
+            try {
+                allTables = extractAllTables(content);
+                if (allTables.length === 0) {
+                    showMessage('No tables detected in the content.', 'error');
+                    return;
+                }
+
+                document.getElementById('tableCount').textContent = allTables.length;
+                document.getElementById('tableDetectionArea').style.display = 'block';
+                document.getElementById('convertBtn').style.display = 'inline-block';
+
+                const selectionDiv = document.getElementById('tableSelection');
+                selectionDiv.innerHTML = '';
+                
+                allTables.forEach((table, index) => {
+                    // Table checkbox
+                    const tableDiv = document.createElement('div');
+                    tableDiv.style.cssText = 'margin-bottom: 20px; padding: 10px; background: white; border-radius: 4px;';
+                    
+                    const tableLabel = document.createElement('label');
+                    tableLabel.style.cssText = 'display: block; margin-bottom: 10px; cursor: pointer; font-weight: bold;';
+                    tableLabel.innerHTML = `<input type="checkbox" id="table${index}" checked onchange="toggleTable(${index})"> Table ${index + 1}: ${table.headers.length} columns, ${table.rows.length} rows`;
+                    tableDiv.appendChild(tableLabel);
+                    
+                    // Column selection
+                    const columnsDiv = document.createElement('div');
+                    columnsDiv.id = `columns${index}`;
+                    columnsDiv.style.cssText = 'margin-left: 25px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;';
+                    
+                    // Initialize all columns as selected
+                    if (!selectedColumns[index]) {
+                        selectedColumns[index] = table.headers.map((_, i) => i);
+                    }
+                    
+                    table.headers.forEach((header, colIndex) => {
+                        const colLabel = document.createElement('label');
+                        colLabel.style.cssText = 'display: block; cursor: pointer; font-weight: normal;';
+                        colLabel.innerHTML = `<input type="checkbox" checked onchange="toggleColumn(${index}, ${colIndex})"> ${header}`;
+                        columnsDiv.appendChild(colLabel);
+                    });
+                    
+                    tableDiv.appendChild(columnsDiv);
+                    selectionDiv.appendChild(tableDiv);
+                });
+
+                updateSelectedTables();
+                showMessage(`Detected ${allTables.length} table(s). Select which ones to convert.`, 'success');
+            } catch (error) {
+                showMessage(`Error detecting tables: ${error.message}`, 'error');
+            }
+        }
+
+        function extractAllTables(markdown) {
+            const tables = [];
+            
+            // First, normalize line breaks within table cells
+            // Replace newlines that are NOT followed by a pipe with a space
+            let normalized = markdown.replace(/([^\n])\n([^|\n])/g, '$1 $2');
+            
+            const lines = normalized.split('\n');
+            let tableLines = [];
+            
+            // Collect all consecutive lines that look like table rows
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                if (line.startsWith('|') && line.endsWith('|')) {
+                    tableLines.push(line);
+                } else if (tableLines.length > 0) {
+                    // We've collected table lines, now try to parse them
+                    if (tableLines.length >= 3) {
+                        try {
+                            const parsed = parseMarkdownTable(tableLines.join('\n'));
+                            if (parsed.rows.length > 0) {
+                                tables.push(parsed);
+                            }
+                        } catch (e) {
+                            console.error('Error parsing table:', e);
+                        }
+                    }
+                    tableLines = [];
+                }
+            }
+
+            // Process remaining table at end
+            if (tableLines.length >= 3) {
+                try {
+                    const parsed = parseMarkdownTable(tableLines.join('\n'));
+                    if (parsed.rows.length > 0) {
+                        tables.push(parsed);
+                    }
+                } catch (e) {
+                    console.error('Error parsing table:', e);
+                }
+            }
+
+            return tables;
+        }
+
+        function toggleTable(tableIndex) {
+            const checkbox = document.getElementById(`table${tableIndex}`);
+            const columnsDiv = document.getElementById(`columns${tableIndex}`);
+            
+            if (checkbox.checked) {
+                columnsDiv.style.display = 'grid';
+            } else {
+                columnsDiv.style.display = 'none';
+            }
+            
+            updateSelectedTables();
+        }
+
+        function toggleColumn(tableIndex, columnIndex) {
+            if (!selectedColumns[tableIndex]) {
+                selectedColumns[tableIndex] = [];
+            }
+            
+            const idx = selectedColumns[tableIndex].indexOf(columnIndex);
+            if (idx > -1) {
+                selectedColumns[tableIndex].splice(idx, 1);
+            } else {
+                selectedColumns[tableIndex].push(columnIndex);
+                selectedColumns[tableIndex].sort((a, b) => a - b);
+            }
+        }
+
+        function updateSelectedTables() {
+            selectedTableIndices = [];
+            allTables.forEach((_, index) => {
+                const checkbox = document.getElementById(`table${index}`);
+                if (checkbox && checkbox.checked) {
+                    selectedTableIndices.push(index);
+                }
+            });
+        }
+
+        function processMarkdown() {
+            if (allTables.length === 0) {
+                showMessage('Please detect tables first.', 'error');
+                return;
+            }
+
+            if (selectedTableIndices.length === 0) {
+                showMessage('Please select at least one table to convert.', 'error');
+                return;
+            }
+
+            try {
+                showMessage('Processing Markdown table(s)...', 'info');
+                
+                if (selectedTableIndices.length === 1) {
+                    // Single table - use existing logic
+                    generateOutput(allTables[selectedTableIndices[0]], selectedTableIndices[0]);
+                } else {
+                    // Multiple tables - combine or show separately
+                    generateMultipleOutputs();
+                }
+                
+                showMessage(`Successfully converted ${selectedTableIndices.length} table(s)!`, 'success');
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        function parseMarkdownTable(markdown) {
+            const lines = markdown.split('\n').filter(line => {
+                const trimmed = line.trim();
+                return trimmed && trimmed.startsWith('|') && trimmed.endsWith('|');
+            });
+            
+            if (lines.length < 3) {
+                throw new Error('Invalid Markdown table format. Need at least header, separator, and one data row.');
+            }
+
+            // Parse header row
+            const headerLine = lines[0].trim();
+            const headers = headerLine
+                .split('|')
+                .map(h => h.trim())
+                .filter(h => h);
+
+            // Find separator row (line with ---)
+            let dataStartIndex = 1;
+            for (let i = 1; i < Math.min(5, lines.length); i++) {
+                if (lines[i].includes('---') || lines[i].match(/^\|[\s:-]+\|/)) {
+                    dataStartIndex = i + 1;
+                    break;
+                }
+            }
+
+            // Parse all data rows - treat EVERY remaining row as data
+            const rows = [];
+            for (let i = dataStartIndex; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                // Skip only if it's clearly a separator row
+                if (line.match(/^\|[\s:-]+\|$/)) continue;
+
+                const values = line
+                    .split('|')
+                    .map(v => v.trim())
+                    .filter((v, idx, arr) => idx > 0 && idx < arr.length - 1);
+
+                // Add ALL rows regardless of column count
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header] = values[index] || '';
+                });
+                rows.push(row);
+            }
+
+            if (rows.length === 0) {
+                throw new Error('No data rows found in Markdown table.');
+            }
+
+            return { headers, rows };
+        }
+
+        function inferDataType(values) {
+            const sampleSize = Math.min(100, values.length);
+            let hasInt = 0, hasDouble = 0, hasBool = 0, hasDateTime = 0;
+
+            for (let i = 0; i < sampleSize; i++) {
+                const value = values[i]?.trim();
+                if (!value) continue;
+
+                if (value.toLowerCase() === 'true' || value.toLowerCase() === 'false') {
+                    hasBool++;
+                } else if (!isNaN(value)) {
+                    if (value.includes('.')) hasDouble++;
+                    else hasInt++;
+                } else {
+                    const dateValue = new Date(value);
+                    if (!isNaN(dateValue.getTime()) && value.match(/\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}/)) {
+                        hasDateTime++;
+                    }
+                }
+            }
+
+            const total = sampleSize;
+            if (hasBool / total > 0.8) return 'bool';
+            if (hasDateTime / total > 0.8) return 'datetime';
+            if ((hasInt + hasDouble) / total > 0.8) return hasDouble > 0 ? 'real' : 'long';
+            return 'string';
+        }
+
+        function sanitizeColumnName(name) {
+            let sanitized = name.trim().replace(/[\s-]+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+            if (/^\d/.test(sanitized)) sanitized = '_' + sanitized;
+            return sanitized || 'Column';
+        }
+
+        function removeNonAsciiChars(text) {
+            return text.replace(/[^\x00-\x7F]/g, '');
+        }
+
+        function generateMultipleOutputs() {
+            let combinedSchema = '';
+            let combinedDataTable = '';
+            const tableName = document.getElementById('tableName').value || 'MyTable';
+
+            selectedTableIndices.forEach((tableIndex, idx) => {
+                const tableData = allTables[tableIndex];
+                const currentTableName = selectedTableIndices.length > 1 ? `${tableName}${idx + 1}` : tableName;
+                
+                const outputs = generateTableOutput(tableData, currentTableName, tableIndex);
+                combinedSchema += outputs.schema + '\n\n';
+                combinedDataTable += outputs.datatable + '\n\n';
+            });
+
+            document.getElementById('schemaCode').textContent = combinedSchema.trim();
+            document.getElementById('datatableCode').textContent = combinedDataTable.trim();
+            document.getElementById('resultsSection').classList.add('active');
+        }
+
+        function generateOutput(tableData, tableIndex) {
+            const tableName = document.getElementById('tableName').value || 'MyTable';
+            const outputs = generateTableOutput(tableData, tableName, tableIndex);
+            
+            document.getElementById('schemaCode').textContent = outputs.schema;
+            document.getElementById('datatableCode').textContent = outputs.datatable;
+            document.getElementById('resultsSection').classList.add('active');
+        }
+
+        function generateTableOutput(tableData, tableName, tableIndex) {
+            const inferTypes = document.getElementById('inferTypes').checked;
+            const removeNonAscii = document.getElementById('removeNonAscii').checked;
+
+            // Get selected columns for this table
+            const selectedCols = selectedColumns[tableIndex] || tableData.headers.map((_, i) => i);
+            const filteredHeaders = selectedCols.map(i => tableData.headers[i]);
+
+            // Generate schema
+            const columns = filteredHeaders.map((header, index) => {
+                const sanitizedHeader = sanitizeColumnName(header);
+                let dataType = 'string';
+                if (inferTypes) {
+                    const columnValues = tableData.rows.map(row => row[header]);
+                    dataType = inferDataType(columnValues);
+                }
+                const comma = index < filteredHeaders.length - 1 ? ',' : '';
+                return `    ${sanitizedHeader}: ${dataType}${comma}`;
+            });
+
+            const schema = `.create table ${tableName} (\n${columns.join('\n')}\n)`;
+            document.getElementById('schemaCode').textContent = schema;
+
+            // Generate datatable
+            let kqlTable = `let ${tableName} = datatable(\n`;
+            const columnDefs = filteredHeaders.map(header => {
+                const sanitizedHeader = sanitizeColumnName(header);
+                let dataType = 'string';
+                if (inferTypes) {
+                    const columnValues = tableData.rows.map(row => row[header]);
+                    dataType = inferDataType(columnValues);
+                }
+                return `${sanitizedHeader}:${dataType}`;
+            });
+
+            kqlTable += '    ' + columnDefs.join(', ') + '\n)[';
+
+            const allValues = [];
+            tableData.rows.forEach(row => {
+                filteredHeaders.forEach(header => {
+                    let value = row[header] || '';
+                    if (removeNonAscii) value = removeNonAsciiChars(value);
+                    
+                    const columnValues = tableData.rows.map(r => r[header]);
+                    const dataType = inferTypes ? inferDataType(columnValues) : 'string';
+                    
+                    if (dataType === 'string' || dataType === 'datetime') {
+                        const cleanValue = value.replace(/\\/g, '');
+                        allValues.push(`"${cleanValue}"`);
+                    } else if (dataType === 'bool') {
+                        allValues.push(value.toLowerCase());
+                    } else {
+                        allValues.push(value);
+                    }
+                });
+            });
+
+            const numCols = filteredHeaders.length;
+            let formattedValues = '\n';
+            for (let i = 0; i < allValues.length; i += numCols) {
+                const rowValues = allValues.slice(i, i + numCols);
+                formattedValues += '    ' + rowValues.join(', ');
+                if (i + numCols < allValues.length) formattedValues += ',';
+                formattedValues += '\n';
+            }
+
+            kqlTable += formattedValues + '];\n\n' + tableName;
+
+            return {
+                schema: schema,
+                datatable: kqlTable
+            };
+        }
+
+        function copyToClipboard(event, elementId) {
+            const text = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        function showMessage(message, type) {
+            const messageArea = document.getElementById('messageArea');
+            const className = type === 'error' ? 'error-message' : 
+                             type === 'success' ? 'success-message' : 'info-message';
+            messageArea.innerHTML = `<div class="${className}">${message}</div>`;
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => messageArea.innerHTML = '', 5000);
+            }
+        }
+
+        function resetApp() {
+            allTables = [];
+            selectedTableIndices = [];
+            selectedColumns = {};
+            document.getElementById('resultsSection').classList.remove('active');
+            document.getElementById('messageArea').innerHTML = '';
+            document.getElementById('markdownTextarea').value = '';
+            document.getElementById('tableDetectionArea').style.display = 'none';
+            document.getElementById('convertBtn').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

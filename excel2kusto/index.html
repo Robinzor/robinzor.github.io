@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel to Kusto Table Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .options-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .options-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .option-group {
+            margin-bottom: 15px;
+        }
+
+        .option-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .option-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+
+        .option-group input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        .checkbox-label {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .upload-section {
+            border: 3px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-section:hover {
+            border-color: #764ba2;
+            background: #f8f9ff;
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .results-section.active {
+            display: block;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .code-block pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #764ba2;
+        }
+
+        .copy-btn.copied {
+            background: #28a745;
+        }
+
+        .info-message {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #28a745;
+        }
+
+        .nav-links {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin-right: 15px;
+            font-weight: 500;
+        }
+
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Excel to Kusto Table Converter</h1>
+            <p>Convert Excel files (.xlsx) to Kusto (KQL) table definitions</p>
+        </div>
+
+        <div class="content">
+            <div class="options-section" style="margin-bottom: 20px;">
+                <h3>⚙️ Configuration</h3>
+                <div class="option-group">
+                    <label for="tableName">Table Name:</label>
+                    <input type="text" id="tableName" placeholder="Enter table name" value="MyTable">
+                </div>
+                <div class="option-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="hasHeaders" checked>
+                        First row contains column headers
+                    </label>
+                </div>
+                <div class="option-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="inferTypes" checked>
+                        Auto-detect column data types
+                    </label>
+                </div>
+                <div class="option-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="removeNonAscii">
+                        Remove non-ASCII characters
+                    </label>
+                </div>
+            </div>
+
+            <div class="upload-section" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📁</div>
+                <h2>Click to select Excel file (.xlsx)</h2>
+                <p style="margin-top: 10px; color: #666;">Supports .xlsx format</p>
+                <input type="file" id="fileInput" class="file-input" accept=".xlsx">
+            </div>
+
+            <div id="columnSelectionArea" style="display: none; margin: 20px 0; padding: 20px; background: #f0f0f0; border-radius: 8px;">
+                <h3 style="margin-bottom: 15px;">Select Columns to Include</h3>
+                <div id="columnCheckboxes" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;"></div>
+                <button class="btn" onclick="generateOutput()" style="margin-top: 15px;">Generate with Selected Columns</button>
+            </div>
+
+            <div id="messageArea"></div>
+
+            <div class="results-section" id="resultsSection">
+                <h3>Kusto Table Schema</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyToClipboard(event, 'schemaCode')">Copy</button>
+                    <pre id="schemaCode"></pre>
+                </div>
+
+                <h3>KQL Datatable Output</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyToClipboard(event, 'datatableCode')">Copy</button>
+                    <pre id="datatableCode"></pre>
+                </div>
+
+                <button class="btn btn-secondary" onclick="resetApp()">Convert Another File</button>
+            </div>
+
+            <div class="nav-links">
+                <a href="https://robinzor.nl/csv2kusto/index.html">CSV to Kusto</a>
+                <a href="https://robinzor.nl/markdown2kusto/index.html">Markdown to Kusto</a>
+                <a href="https://robinzor.nl/excel2kusto/index.html">Excel to Kusto</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- SheetJS library for Excel parsing -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+    <script>
+        let excelData = null;
+        let selectedColumns = [];
+
+        document.getElementById('fileInput').addEventListener('change', handleFile);
+
+        function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!file.name.endsWith('.xlsx')) {
+                showMessage('Please select a valid Excel file (.xlsx)', 'error');
+                return;
+            }
+
+            showMessage('Processing Excel file...', 'info');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Get first sheet
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // Convert to JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                    
+                    excelData = parseExcelData(jsonData);
+                    showColumnSelection();
+                    showMessage(`File processed. Select columns to include.`, 'success');
+                } catch (error) {
+                    showMessage(`Error processing file: ${error.message}`, 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function parseExcelData(jsonData) {
+            if (jsonData.length === 0) {
+                throw new Error('Excel file is empty');
+            }
+
+            const hasHeaders = document.getElementById('hasHeaders').checked;
+            let headers, startRow;
+
+            if (hasHeaders) {
+                headers = jsonData[0].map(h => String(h || '').trim());
+                startRow = 1;
+            } else {
+                headers = jsonData[0].map((_, index) => `Column${index + 1}`);
+                startRow = 0;
+            }
+
+            const rows = [];
+            for (let i = startRow; i < jsonData.length; i++) {
+                const values = jsonData[i];
+                if (values.length === 0) continue;
+
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header] = String(values[index] || '');
+                });
+                rows.push(row);
+            }
+
+            return { headers, rows };
+        }
+
+        function inferDataType(values) {
+            const sampleSize = Math.min(100, values.length);
+            let hasInt = 0, hasDouble = 0, hasBool = 0, hasDateTime = 0;
+
+            for (let i = 0; i < sampleSize; i++) {
+                const value = values[i]?.trim();
+                if (!value) continue;
+
+                if (value.toLowerCase() === 'true' || value.toLowerCase() === 'false') {
+                    hasBool++;
+                } else if (!isNaN(value)) {
+                    if (value.includes('.')) hasDouble++;
+                    else hasInt++;
+                } else {
+                    const dateValue = new Date(value);
+                    if (!isNaN(dateValue.getTime()) && value.match(/\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}/)) {
+                        hasDateTime++;
+                    }
+                }
+            }
+
+            const total = sampleSize;
+            if (hasBool / total > 0.8) return 'bool';
+            if (hasDateTime / total > 0.8) return 'datetime';
+            if ((hasInt + hasDouble) / total > 0.8) return hasDouble > 0 ? 'real' : 'long';
+            return 'string';
+        }
+
+        function sanitizeColumnName(name) {
+            let sanitized = name.trim().replace(/[\s-]+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+            if (/^\d/.test(sanitized)) sanitized = '_' + sanitized;
+            return sanitized || 'Column';
+        }
+
+        function removeNonAsciiChars(text) {
+            return text.replace(/[^\x00-\x7F]/g, '');
+        }
+
+        function showColumnSelection() {
+            const checkboxArea = document.getElementById('columnCheckboxes');
+            checkboxArea.innerHTML = '';
+            selectedColumns = excelData.headers.map((_, i) => i);
+
+            excelData.headers.forEach((header, index) => {
+                const label = document.createElement('label');
+                label.style.cssText = 'display: block; cursor: pointer;';
+                label.innerHTML = `<input type="checkbox" checked onchange="toggleColumn(${index})"> ${header}`;
+                checkboxArea.appendChild(label);
+            });
+
+            document.getElementById('columnSelectionArea').style.display = 'block';
+            document.getElementById('resultsSection').classList.remove('active');
+        }
+
+        function toggleColumn(columnIndex) {
+            const idx = selectedColumns.indexOf(columnIndex);
+            if (idx > -1) {
+                selectedColumns.splice(idx, 1);
+            } else {
+                selectedColumns.push(columnIndex);
+                selectedColumns.sort((a, b) => a - b);
+            }
+        }
+
+        function generateOutput() {
+            if (selectedColumns.length === 0) {
+                showMessage('Please select at least one column.', 'error');
+                return;
+            }
+
+            const tableName = document.getElementById('tableName').value || 'MyTable';
+            const inferTypes = document.getElementById('inferTypes').checked;
+            const removeNonAscii = document.getElementById('removeNonAscii').checked;
+
+            const filteredHeaders = selectedColumns.map(i => excelData.headers[i]);
+
+            // Generate schema
+            const columns = filteredHeaders.map((header, index) => {
+                const sanitizedHeader = sanitizeColumnName(header);
+                let dataType = 'string';
+                if (inferTypes) {
+                    const columnValues = excelData.rows.map(row => row[header]);
+                    dataType = inferDataType(columnValues);
+                }
+                const comma = index < filteredHeaders.length - 1 ? ',' : '';
+                return `    ${sanitizedHeader}: ${dataType}${comma}`;
+            });
+
+            const schema = `.create table ${tableName} (\n${columns.join('\n')}\n)`;
+            document.getElementById('schemaCode').textContent = schema;
+
+            // Generate datatable
+            let kqlTable = `let ${tableName} = datatable(\n`;
+            const columnDefs = filteredHeaders.map(header => {
+                const sanitizedHeader = sanitizeColumnName(header);
+                let dataType = 'string';
+                if (inferTypes) {
+                    const columnValues = excelData.rows.map(row => row[header]);
+                    dataType = inferDataType(columnValues);
+                }
+                return `${sanitizedHeader}:${dataType}`;
+            });
+
+            kqlTable += '    ' + columnDefs.join(', ') + '\n)[';
+
+            const allValues = [];
+            excelData.rows.forEach(row => {
+                filteredHeaders.forEach(header => {
+                    let value = row[header] || '';
+                    if (removeNonAscii) value = removeNonAsciiChars(value);
+                    
+                    const columnValues = excelData.rows.map(r => r[header]);
+                    const dataType = inferTypes ? inferDataType(columnValues) : 'string';
+                    
+                    if (dataType === 'string' || dataType === 'datetime') {
+                        const cleanValue = value.replace(/\\/g, '');
+                        allValues.push(`"${cleanValue}"`);
+                    } else if (dataType === 'bool') {
+                        allValues.push(value.toLowerCase());
+                    } else {
+                        allValues.push(value);
+                    }
+                });
+            });
+
+            const numCols = filteredHeaders.length;
+            let formattedValues = '\n';
+            for (let i = 0; i < allValues.length; i += numCols) {
+                const rowValues = allValues.slice(i, i + numCols);
+                formattedValues += '    ' + rowValues.join(', ');
+                if (i + numCols < allValues.length) formattedValues += ',';
+                formattedValues += '\n';
+            }
+
+            kqlTable += formattedValues + '];\n\n' + tableName;
+            document.getElementById('datatableCode').textContent = kqlTable;
+
+            document.getElementById('resultsSection').classList.add('active');
+        }
+
+        function copyToClipboard(event, elementId) {
+            const text = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        function showMessage(message, type) {
+            const messageArea = document.getElementById('messageArea');
+            const className = type === 'error' ? 'error-message' : 
+                             type === 'success' ? 'success-message' : 'info-message';
+            messageArea.innerHTML = `<div class="${className}">${message}</div>`;
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => messageArea.innerHTML = '', 5000);
+            }
+        }
+
+        function resetApp() {
+            excelData = null;
+            selectedColumns = [];
+            document.getElementById('resultsSection').classList.remove('active');
+            document.getElementById('columnSelectionArea').style.display = 'none';
+            document.getElementById('messageArea').innerHTML = '';
+            document.getElementById('fileInput').value = '';
+        }
+    </script>
+</body>
+</html>
